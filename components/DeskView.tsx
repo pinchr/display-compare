@@ -66,7 +66,7 @@ export default function DeskView({ monitors, arrangements, onArrangementsChange 
   }, [displayMonitors, arrangements]);
 
   const [sharedArrangements, setSharedArrangements] = useState<MonitorArrangement3D[]>(getInitialArrangements);
-  const [sharedHeadDistance, setSharedHeadDistance] = useState(70);
+  const [sharedHeadDistance, setSharedHeadDistance] = useState(94);
   const isInitialized = useRef(false);
 
   useEffect(() => {
