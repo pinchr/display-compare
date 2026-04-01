@@ -119,7 +119,7 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   const [showBanana, setShowBanana] = useState(false);
   const [showIPhone, setShowIPhone] = useState(false);
   const [deskWidthCm, setDeskWidthCm] = useState(180); // desk width in cm
-  const [deskDepthCm, setDeskDepthCm] = useState(80); // desk depth in cm
+  const [deskDepthCm, setDeskDepthCm] = useState(70); // desk depth in cm
   const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D; startXCm: number; startYCm: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
