@@ -218,6 +218,37 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
     return Math.abs(yCm) <= visibleHalfHeight;
   };
 
+  // Calculate overlap percentage for a monitor
+  const getOverlapPercent = (arr: MonitorArrangement3D): number => {
+    let maxOverlap = 0;
+    for (const other of arrangements) {
+      if (other.id === arr.id) continue;
+      const wA = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
+      const hA = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
+      const wB = calcWidthCm(other.monitor.diagonal, other.monitor.widthPx, other.monitor.heightPx);
+      const hB = calcHeightCm(other.monitor.diagonal, other.monitor.widthPx, other.monitor.heightPx);
+
+      const aLeft = arr.xCm - wA / 2;
+      const aRight = arr.xCm + wA / 2;
+      const bLeft = other.xCm - wB / 2;
+      const bRight = other.xCm + wB / 2;
+      const xOverlap = Math.max(0, Math.min(aRight, bRight) - Math.max(aLeft, bLeft));
+
+      const aTop = arr.yCm;
+      const aBottom = arr.yCm + hA;
+      const bTop = other.yCm;
+      const bBottom = other.yCm + hB;
+      const yOverlap = Math.max(0, Math.min(aBottom, bBottom) - Math.max(aTop, bTop));
+
+      const overlapArea = xOverlap * yOverlap;
+      const smallerArea = Math.min(wA * hA, wB * hB);
+      if (smallerArea > 0) {
+        maxOverlap = Math.max(maxOverlap, overlapArea / smallerArea);
+      }
+    }
+    return maxOverlap;
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -295,11 +326,14 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
           const yPx = EYE_Y + arr.yCm * 2 - hPx / 2;
           const windows = placedWindows.filter(pw => pw.monitorId === arr.id);
           const inFOV = isInFOV(arr.yCm);
+          const overlapPct = getOverlapPercent(arr);
+          // If overlap > 10%, show semi-transparent overlay
+          const opacity = !inFOV ? 0.4 : overlapPct > 0.1 ? 0.65 : 1.0;
 
           return (
             <div key={arr.id}
-              className={`absolute rounded-lg overflow-hidden ${draggingId === arr.id ? "ring-2 ring-accent" : ""} ${!inFOV ? "opacity-40" : ""}`}
-              style={{ left: `${xPx}px`, top: `${yPx}px`, width: `${wPx}px`, height: `${hPx}px`, boxShadow: "0 8px 40px rgba(0,0,0,0.9), 0 0 0 2px #3a3a40", cursor: draggingId === arr.id ? "grabbing" : "grab" }}
+              className={`absolute rounded-lg overflow-hidden ${draggingId === arr.id ? "ring-2 ring-accent" : ""}`}
+              style={{ left: `${xPx}px`, top: `${yPx}px`, width: `${wPx}px`, height: `${hPx}px`, opacity, boxShadow: "0 8px 40px rgba(0,0,0,0.9), 0 0 0 2px #3a3a40", cursor: draggingId === arr.id ? "grabbing" : "grab" }}
               onPointerDown={(e) => { e.stopPropagation(); const rect = containerRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr, startXCm: arr.xCm, startYCm: arr.yCm }; }}
             >
               <div className="absolute inset-0 rounded-lg bg-[#2a2a30]" />
