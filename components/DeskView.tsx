@@ -535,15 +535,16 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          // DESK_Y: desk is BELOW monitors (monitors sit ON the desk)
-          // When distance increases, desk moves DOWN (further away on screen)
-          const DESK_Y = HEAD_Y + 20 + (headDistance - REF_DISTANCE) * 1.5;
+          // DESK_Y: desk starts below head, moves UP as distance increases (toward horizon)
+          const DESK_Y = HEAD_Y + 50 - (headDistance - REF_DISTANCE) * 1.5;
           const yMon = DESK_Y - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
           const curveRadius = arr.monitor.curvatureRadius || 1500;
-          // Arc radius: ry = wPx * (1500 / R) * 0.3 - bigger R = flatter curve
-          const arcRy = wPx * (1500 / curveRadius) * 0.3;
+          // Arc: ry represents the sagitta (curve depth) based on R
+          // For R=1500: arc is more curved. For R=3800: arc is flatter
+          // ry = wPx * (1500/R) * 0.15 gives reasonable visual curvature
+          const arcRy = wPx * (1500 / curveRadius) * 0.15;
 
           return (
             <g key={arr.id}>
