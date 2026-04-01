@@ -21,10 +21,10 @@ export default function PresetBar({
     <div className="w-full">
       <div className="flex items-center gap-2 mb-3">
         <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
-          Popularne monitory
+          Popular monitors
         </h2>
         <span className="text-xs text-text-tertiary">
-          ({selectedMonitors.length}/{maxSelect} wybrane)
+          ({selectedMonitors.length}/{maxSelect} selected)
         </span>
       </div>
 

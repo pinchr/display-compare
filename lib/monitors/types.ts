@@ -14,6 +14,10 @@ export interface Monitor {
   price?: number;
   imageUrl?: string;
   source?: string;
+  // Curved screen info
+  curved?: boolean;           // true if monitor has curved screen
+  curvatureRadius?: number;   // curve radius in mm (1000R = 1000mm radius)
+  curvatureType?: "concave" | "convex"; // concave = curved toward user (typical for monitors)
 }
 
 export interface ComparisonState {

@@ -12,6 +12,7 @@ export const PRESET_MONITORS: Monitor[] = [
     refreshRate: 60,
     responseTime: 5,
     price: 150,
+    // curved: false (płaski — brak curvature dla standardowych monitorów 24")
   },
   {
     id: "27-1080-60",
@@ -37,6 +38,7 @@ export const PRESET_MONITORS: Monitor[] = [
     responseTime: 1,
     brightness: 350,
     price: 350,
+    // curved: false (standard 27" QHD — flat)
   },
   {
     id: "27-4k-60",
@@ -50,6 +52,7 @@ export const PRESET_MONITORS: Monitor[] = [
     responseTime: 5,
     brightness: 400,
     price: 450,
+    // curved: false
   },
   {
     id: "32-4k-60",
@@ -63,6 +66,7 @@ export const PRESET_MONITORS: Monitor[] = [
     responseTime: 4,
     brightness: 300,
     price: 500,
+    // curved: false (standard 32" — mostly flat, some gaming variants are 1500R)
   },
   {
     id: "34-uwqhd-144",
@@ -76,6 +80,9 @@ export const PRESET_MONITORS: Monitor[] = [
     responseTime: 1,
     brightness: 400,
     price: 550,
+    curved: true,
+    curvatureRadius: 1000, // 1000R = 1000mm radius, typical for gaming ultrawides
+    curvatureType: "concave",
   },
   {
     id: "49-suw-60",
@@ -88,6 +95,9 @@ export const PRESET_MONITORS: Monitor[] = [
     refreshRate: 60,
     responseTime: 4,
     price: 900,
+    curved: true,
+    curvatureRadius: 1500, // 1500R typical for 49" super ultrawides
+    curvatureType: "concave",
   },
   {
     id: "24-1080-360",

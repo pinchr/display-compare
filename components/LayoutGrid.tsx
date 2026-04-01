@@ -11,10 +11,10 @@ interface LayoutGridProps {
 }
 
 const LAYOUTS: { label: string; value: 2 | 3 | 4 | 6 }[] = [
-  { label: "2 okna", value: 2 },
-  { label: "3 okna", value: 3 },
-  { label: "4 okna", value: 4 },
-  { label: "6 okien", value: 6 },
+  { label: "2 windows", value: 2 },
+  { label: "3 windows", value: 3 },
+  { label: "4 windows", value: 4 },
+  { label: "6 windows", value: 6 },
 ];
 
 export default function LayoutGrid({ monitors, selectedLayout, onLayoutChange }: LayoutGridProps) {
@@ -153,7 +153,7 @@ export default function LayoutGrid({ monitors, selectedLayout, onLayoutChange }:
       {/* Comparison summary */}
       {monitors.length >= 2 && (
         <div className="mt-4 p-3 rounded-lg bg-bg-secondary border border-border">
-          <p className="text-xs text-text-tertiary mb-2">Porównanie rozmiaru okna:</p>
+          <p className="text-xs text-text-tertiary mb-2">Window size comparison:</p>
           <div className="space-y-1">
             {monitors.map((m) => {
               const win = getWindowSize(m, selectedLayout);

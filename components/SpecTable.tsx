@@ -18,82 +18,88 @@ export default function SpecTable({ monitors }: SpecTableProps) {
   if (monitors.length < 2) {
     return (
       <div className="text-center py-8 text-text-tertiary text-sm">
-        Wybierz min. 2 monitory aby zobaczyć porównanie specyfikacji
+        Select at least 2 monitors to compare specifications
       </div>
     );
   }
 
   const specs = [
     {
-      label: "Przekątna",
+      label: "Diagonal",
       getValue: (m: Monitor) => `${m.diagonal}"`,
       getNum: (m: Monitor) => m.diagonal,
       higherIsBetter: true,
     },
     {
-      label: "Rozdzielczość",
+      label: "Resolution",
       getValue: (m: Monitor) => formatResolution(m.widthPx, m.heightPx),
       getNum: (m: Monitor) => m.widthPx * m.heightPx,
       higherIsBetter: true,
     },
     {
-      label: "Proporcje",
+      label: "Aspect ratio",
       getValue: (m: Monitor) => getAspectRatio(m.widthPx, m.heightPx),
       getNum: (m: Monitor) => m.widthPx / m.heightPx,
-      higherIsBetter: null, // neutral
+      higherIsBetter: null,
     },
     {
-      label: "Szerokość",
+      label: "Width",
       getValue: (m: Monitor) => `${calcWidthCm(m.diagonal, m.widthPx, m.heightPx).toFixed(1)} cm`,
       getNum: (m: Monitor) => calcWidthCm(m.diagonal, m.widthPx, m.heightPx),
       higherIsBetter: true,
     },
     {
-      label: "Wysokość",
+      label: "Height",
       getValue: (m: Monitor) => `${calcHeightCm(m.diagonal, m.widthPx, m.heightPx).toFixed(1)} cm`,
       getNum: (m: Monitor) => calcHeightCm(m.diagonal, m.widthPx, m.heightPx),
       higherIsBetter: true,
     },
     {
-      label: "Powierzchnia",
+      label: "Surface area",
       getValue: (m: Monitor) => `${getSurfaceArea(m.diagonal, m.widthPx, m.heightPx).toFixed(0)} cm²`,
       getNum: (m: Monitor) => getSurfaceArea(m.diagonal, m.widthPx, m.heightPx),
       higherIsBetter: true,
     },
     {
-      label: "PPI (gęstość)",
+      label: "PPI",
       getValue: (m: Monitor) => `${calcPPI(m.widthPx, m.heightPx, m.diagonal).toFixed(0)}`,
       getNum: (m: Monitor) => calcPPI(m.widthPx, m.heightPx, m.diagonal),
       higherIsBetter: true,
     },
     {
-      label: "Matryca",
+      label: "Panel type",
       getValue: (m: Monitor) => m.panelType || "—",
       getNum: () => 0,
       higherIsBetter: null,
     },
     {
-      label: "Odświeżanie",
+      label: "Refresh rate",
       getValue: (m: Monitor) => (m.refreshRate ? `${m.refreshRate} Hz` : "—"),
       getNum: (m: Monitor) => m.refreshRate || 0,
       higherIsBetter: true,
     },
     {
-      label: "Czas reakcji",
+      label: "Response time",
       getValue: (m: Monitor) => (m.responseTime ? `${m.responseTime} ms` : "—"),
       getNum: (m: Monitor) => m.responseTime || 999,
       higherIsBetter: false,
     },
     {
-      label: "Jasność",
+      label: "Brightness",
       getValue: (m: Monitor) => (m.brightness ? `${m.brightness} cd/m²` : "—"),
       getNum: (m: Monitor) => m.brightness || 0,
       higherIsBetter: true,
     },
     {
-      label: "Kontrast",
+      label: "Contrast",
       getValue: (m: Monitor) => m.contrast || "—",
       getNum: () => 0,
+      higherIsBetter: null,
+    },
+    {
+      label: "Curvature",
+      getValue: (m: Monitor) => m.curved ? `${m.curvatureRadius}R ${m.curvatureType === "concave" ? "concave" : "convex"}` : "Flat",
+      getNum: (m: Monitor) => m.curved ? m.curvatureRadius || 1000 : 0,
       higherIsBetter: null,
     },
   ];
@@ -112,10 +118,13 @@ export default function SpecTable({ monitors }: SpecTableProps) {
     }
   };
 
+  // Only show curvature row if at least one monitor has curved data
+  const hasAnyCurved = monitors.some((m) => m.curved);
+
   return (
     <div className="space-y-3">
       <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
-        Porównanie specyfikacji
+        Specification comparison
       </h2>
 
       <div className="overflow-x-auto">
@@ -138,7 +147,7 @@ export default function SpecTable({ monitors }: SpecTableProps) {
             </tr>
           </thead>
           <tbody>
-            {specs.map((spec) => {
+            {specs.filter((s) => s.label !== "Zakrzywienie" || hasAnyCurved).map((spec) => {
               const best = getBestValue(spec, monitors);
 
               return (

@@ -26,10 +26,10 @@ export default function Workspace({
           <span className="text-4xl opacity-30">🖥️</span>
         </div>
         <h3 className="text-lg font-semibold text-text-secondary mb-1">
-          Wybierz monitory do porównania
+          Select monitors to compare
         </h3>
         <p className="text-sm text-text-tertiary max-w-xs">
-          Kliknij powyżej na popularne monitory lub dodaj własne parametry
+          Click above on popular monitors or add your own parameters
         </p>
       </div>
     );
@@ -39,7 +39,7 @@ export default function Workspace({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
-          Workspace ({monitors.length} monitorów)
+          Workspace ({monitors.length} monitors)
         </h2>
         <button
           onClick={() => {
@@ -47,7 +47,7 @@ export default function Workspace({
           }}
           className="text-xs text-red-400 hover:text-red-300 transition-colors"
         >
-          Wyczyść wszystko
+          Clear all
         </button>
       </div>
 
@@ -85,6 +85,12 @@ export default function Workspace({
               <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-bold">
                 #{idx + 1}
               </div>
+              {/* Curved badge */}
+              {monitor.curved && (
+                <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 text-[9px] font-semibold">
+                  {monitor.curvatureRadius}R
+                </div>
+              )}
 
               {/* Monitor visual — proportions preserved */}
               <div className="p-4">
@@ -124,15 +130,15 @@ export default function Workspace({
 
                   <div className="mt-3 space-y-0.5 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-text-tertiary">Rozdzielczość</span>
+                      <span className="text-text-tertiary">Resolution</span>
                       <span className="text-text-primary font-mono">{formatResolution(monitor.widthPx, monitor.heightPx)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-text-tertiary">Przekątna</span>
+                      <span className="text-text-tertiary">Diagonal</span>
                       <span className="text-text-primary">{monitor.diagonal}&quot;</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-text-tertiary">Wymiary</span>
+                      <span className="text-text-tertiary">Size</span>
                       <span className="text-text-primary font-mono">{widthCm.toFixed(1)} × {heightCm.toFixed(1)} cm</span>
                     </div>
                     <div className="flex justify-between">
@@ -141,7 +147,7 @@ export default function Workspace({
                     </div>
                     {monitor.panelType && (
                       <div className="flex justify-between">
-                        <span className="text-text-tertiary">Matryca</span>
+                        <span className="text-text-tertiary">Panel</span>
                         <span className="text-text-primary">{monitor.panelType}</span>
                       </div>
                     )}
