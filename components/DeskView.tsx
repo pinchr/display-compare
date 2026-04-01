@@ -33,30 +33,7 @@ interface MonitorArrangement3D {
   rotation: number;
 }
 
-// Rotation handle component - extracted to fix TypeScript scoping
-function RotationHandle({ cx, yMon, rotation, isRotating, onRotateStart }: {
-  cx: number; yMon: number; rotation: number; isRotating: boolean;
-  onRotateStart: (mouseX: number) => void;
-}) {
-  const perpDist = 50;
-  const rotRad = (rotation * Math.PI) / 180;
-  const handleX = cx + Math.sin(rotRad) * perpDist;
-  const handleY = yMon - Math.cos(rotRad) * perpDist;
-  const handleR = 12;
-
-  return (
-    <g>
-      <line x1={cx} y1={yMon} x2={handleX} y2={handleY}
-        stroke={isRotating ? "#fbbf24" : "#f97316"} strokeWidth={3} strokeDasharray="6 3" />
-      <circle cx={handleX} cy={handleY} r={handleR}
-        fill={isRotating ? "#fbbf24" : "#ea580c"} stroke="#ffffff" strokeWidth={2}
-        style={{ cursor: "grab" }}
-        onPointerDown={(e) => { e.stopPropagation(); onRotateStart(e.clientX); }} />
-      <text x={handleX} y={handleY} fill="#ffffff" fontSize={12} textAnchor="middle"
-        dominantBaseline="middle" fontWeight="bold" style={{ pointerEvents: "none" }}>↻</text>
-    </g>
-  );
-}
+// Rotation handle component - REMOVED, using inline line instead
 
 interface DeskViewProps {
   monitors: Monitor[];
@@ -449,7 +426,7 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [rotatingId, setRotatingId] = useState<string | null>(null);
   const dragStart = useRef<{ mouseX: number; arr: MonitorArrangement3D } | null>(null);
-  const rotateStart = useRef<{ mouseX: number; arr: MonitorArrangement3D; handleX: number } | null>(null);
+  const rotateStart = useRef<{ mouseX: number; arr: MonitorArrangement3D; startLineEndX: number } | null>(null);
 
   // Sync local arrangements from parent only when not dragging
   useEffect(() => {
@@ -467,13 +444,14 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
   const totalPhysCm = useMemo(() => monitors.reduce((sum, m) => sum + calcWidthCm(m.diagonal, m.widthPx, m.heightPx), 0) + (monitors.length - 1) * 3, [monitors]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // Handle rotation dragging
+    // Handle rotation dragging - drag the head-end of perpendicular line
     if (rotatingId && rotateStart.current && svgRef.current) {
-      const rect = svgRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const dx = mouseX - rotateStart.current.mouseX;
-      const degPerPx = 0.5;
-      const newRotation = rotateStart.current.arr.rotation + dx * degPerPx;
+      const dx = e.clientX - rotateStart.current.mouseX;
+      const newLineEndX = rotateStart.current.startLineEndX + dx;
+      // Calculate new rotation from new line end position
+      const cx = HEAD_X + rotateStart.current.arr.xCm * SCALE;
+      const dist = headDistance * SCALE;
+      const newRotation = (Math.asin(Math.max(-1, Math.min(1, (newLineEndX - cx) / dist))) * 180) / Math.PI;
       setLocalArrangements(prev => prev.map(arr =>
         arr.id === rotatingId ? { ...arr, rotation: newRotation } : arr
       ));
@@ -493,7 +471,7 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
     const maxXCm = totalPhysCm / 2 - halfW;
     const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.arr.xCm + dxCm));
     setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm } : arr));
-  }, [draggingId, rotatingId, totalPhysCm]);
+  }, [draggingId, rotatingId, totalPhysCm, headDistance]);
 
   const handlePointerUp = useCallback(() => {
     if (draggingId) {
@@ -569,9 +547,29 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
           const curveRadius = arr.monitor.curvatureRadius || 1500;
           const curveRadiusPx = curveRadius * SCALE / 10;
 
+          // Line from monitor toward head - drag head-end to rotate monitor
+          // Line angle from vertical = rotation
+          const lineEndX = cx + Math.sin((arr.rotation * Math.PI) / 180) * headDistance * SCALE;
+
           return (
             <g key={arr.id}>
-              <line x1={cx} y1={yMon + 8} x2={cx} y2={HEAD_Y} stroke="#3a3a48" strokeWidth={1.5} opacity={0.5} />
+              {/* Draggable perpendicular line - drag head-end horizontally to rotate */}
+              <line
+                x1={cx}
+                y1={yMon}
+                x2={lineEndX}
+                y2={HEAD_Y}
+                stroke={rotatingId === arr.id ? "#fbbf24" : "#3a3a48"}
+                strokeWidth={2}
+                strokeDasharray="6 3"
+                opacity={0.8}
+                style={{ cursor: "ew-resize" }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  setRotatingId(arr.id);
+                  rotateStart.current = { mouseX: e.clientX, arr, startLineEndX: lineEndX };
+                }}
+              />
 
               {curved ? (
                 <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadiusPx} ${curveRadiusPx} 0 0 1 ${cx + wPx/2} ${yMon}`}
@@ -585,14 +583,8 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
 
               <text x={cx} y={yMon - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
 
-              {/* Rotation handle: line perpendicular to monitor + draggable handle */}
-              <RotationHandle cx={cx} yMon={yMon} rotation={arr.rotation} isRotating={rotatingId === arr.id} onRotateStart={(mouseX: number) => {
-                const perpDist = 50;
-                const rotRad = (arr.rotation * Math.PI) / 180;
-                const handleX = cx + Math.sin(rotRad) * perpDist;
-                setRotatingId(arr.id);
-                rotateStart.current = { mouseX, arr, handleX };
-              }} />
+              {/* Small drag indicator at head-end of the line */}
+              <circle cx={lineEndX} cy={HEAD_Y} r={5} fill={rotatingId === arr.id ? "#fbbf24" : "#6b7280"} stroke="#ffffff" strokeWidth={1} style={{ cursor: "ew-resize" }} />
             </g>
           );
         })}
