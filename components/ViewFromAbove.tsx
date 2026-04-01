@@ -3,11 +3,14 @@
 import { Monitor } from "@/lib/monitors/types";
 import { calcWidthCm, calcHeightCm } from "@/lib/monitors/calculations";
 import type { MonitorArrangement } from "@/app/page";
+import { useState, useRef } from "react";
 
 interface ViewFromAboveProps {
   monitors: Monitor[];
   // Arrangement from WorkspaceSimulator — used for monitor positions
   arrangements?: MonitorArrangement[];
+  // Callback when rotation changes (for bird's eye mode)
+  onRotationChange?: (monitorId: string, rotationDeg: number) => void;
 }
 
 // Workspace canvas dimensions (where arrangements are defined)
@@ -46,7 +49,61 @@ const getDistanceQuality = (actualDist: number, optimalDist: number): { color: s
   }
 };
 
-export default function ViewFromAbove({ monitors, arrangements }: ViewFromAboveProps) {
+export default function ViewFromAbove({ monitors, arrangements, onRotationChange }: ViewFromAboveProps) {
+  const [rotatingMonitor, setRotatingMonitor] = useState<string | null>(null);
+  const [customRotations, setCustomRotations] = useState<Record<string, number>>({});
+  const svgRef = useRef<SVGSVGElement>(null);
+  type FinalPosition = { x: number; y: number; w: number; h: number; m: Monitor; isCurved: boolean; depthCm: number; optimalDist: number; quality: { color: string; label: string }; rotation: number };
+  const finalPositionsRef = useRef<FinalPosition[] | null>(null);
+
+  // Calculate rotation angle from monitor center to head direction
+  const getRotationToHead = (mx: number, my: number): number => {
+    const angleRad = Math.atan2(HEAD_X - mx, HEAD_Y - my);
+    return angleRad * (180 / Math.PI) * 0.35;
+  };
+
+  // Handle mouse events for rotation dragging
+  const handleMouseDown = (monitorId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setRotatingMonitor(monitorId);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!rotatingMonitor || !svgRef.current) return;
+
+    const svg = svgRef.current;
+    const rect = svg.getBoundingClientRect();
+    const scaleX = CANVAS_W / rect.width;
+    const scaleY = CANVAS_H / rect.height;
+
+    const mouseX = (e.clientX - rect.left) * scaleX;
+    const mouseY = (e.clientY - rect.top) * scaleY;
+
+    // Find the monitor's center position using ref
+    const pos = finalPositionsRef.current?.find(p => p.m.id === rotatingMonitor);
+    if (!pos) return;
+
+    // Calculate angle from monitor center to mouse
+    const dx = mouseX - pos.x;
+    const dy = mouseY - pos.y;
+    // The monitor's front is perpendicular to the direction towards head
+    // If we drag the handle, the angle determines rotation
+    const angleRad = Math.atan2(dx, dy);
+    const rotationDeg = angleRad * (180 / Math.PI);
+
+    setCustomRotations(prev => ({ ...prev, [rotatingMonitor]: rotationDeg }));
+  };
+
+  const handleMouseUp = () => {
+    if (rotatingMonitor && onRotationChange) {
+      const pos = finalPositionsRef.current?.find(p => p.m.id === rotatingMonitor);
+      const rotation = customRotations[rotatingMonitor] ?? getRotationToHead(pos?.x || 0, pos?.y || 0);
+      onRotationChange(rotatingMonitor, rotation);
+    }
+    setRotatingMonitor(null);
+  };
+
   if (monitors.length === 0) return null;
 
   const mono = monitors.slice(0, 3);
@@ -115,6 +172,7 @@ export default function ViewFromAbove({ monitors, arrangements }: ViewFromAboveP
       const rotationDeg = angleRad * (180 / Math.PI) * 0.35;
       return { x, y, w: physW, h: physH, m, isCurved: !!m.curved, depthCm, optimalDist, quality, rotation: rotationDeg };
     });
+    finalPositionsRef.current = finalPositions;
   } else {
     // Auto-layout: side by side, centered, largest in middle
     const sorted = [...mono].sort((a, b) => {
@@ -153,6 +211,7 @@ export default function ViewFromAbove({ monitors, arrangements }: ViewFromAboveP
       currX += positions[i].w + spacing;
     }
     finalPositions = positions;
+    finalPositionsRef.current = finalPositions;
   }
 
   const viewDistPx = EYES_DISTANCE_CM * cmToPx;
@@ -163,22 +222,26 @@ export default function ViewFromAbove({ monitors, arrangements }: ViewFromAboveP
       {/* Header */}
       <div className="px-5 py-3 border-b border-border bg-bg-tertiary/50">
         <h3 className="text-[13px] font-semibold text-accent">
-          📐 Bird's eye — desk layout with distance quality
+          📐 Bird's eye — drag 🔘 to rotate monitor
         </h3>
         <p className="text-[9px] text-text-tertiary mt-0.5">
-          Head at bottom • Monitors in front • Green = optimal • Top = total width of setup
+          Head at bottom • Monitors in front • Green = optimal • Drag handle to rotate
         </p>
       </div>
 
       {/* SVG View */}
       <div className="flex items-center justify-center py-4 px-4">
         <svg
+          ref={svgRef}
           width={CANVAS_W}
           height={CANVAS_H}
           viewBox={`0 0 ${CANVAS_W} ${CANVAS_H}`}
           className="rounded-xl overflow-hidden"
           style={{ background: "#1a1a1e", maxWidth: "100%" }}
           clipRule="evenodd"
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
         >
           <defs>
             <clipPath id="birdEyeClip">
@@ -350,7 +413,7 @@ export default function ViewFromAbove({ monitors, arrangements }: ViewFromAboveP
                 {/* Monitor body */}
                 {isCurved ? (
                   // Curved monitor — wrapped in rotation group
-                  <g transform={`rotate(${pos.rotation}, ${x}, ${y})`}>
+                  <g transform={`rotate(${customRotations[m.id] ?? pos.rotation}, ${x}, ${y})`}>
                     {(() => {
                       const r = m.curvatureRadius || 1000; // mm
                       const wCm = widthsCm[mono.findIndex((m2) => m2.id === m.id)];
@@ -397,7 +460,7 @@ export default function ViewFromAbove({ monitors, arrangements }: ViewFromAboveP
                   </g>
                 ) : (
                   // Flat monitor — rotated toward viewer
-                  <g transform={`rotate(${pos.rotation}, ${x}, ${y})`}>
+                  <g transform={`rotate(${customRotations[m.id] ?? pos.rotation}, ${x}, ${y})`}>
                     <rect
                       x={x - w / 2}
                       y={y - h / 2}
@@ -445,6 +508,56 @@ export default function ViewFromAbove({ monitors, arrangements }: ViewFromAboveP
                 >
                   {Math.round(widthsCm[mono.findIndex((m2) => m2.id === m.id)])}cm
                 </text>
+
+                {/* Rotation handle — drag to rotate monitor */}
+                {(() => {
+                  const rot = customRotations[m.id] ?? pos.rotation;
+                  const handleLen = 60;
+                  // Line extends from center in direction of rotation (towards head)
+                  const rad = (rot * Math.PI) / 180;
+                  const hx = x + Math.sin(rad) * handleLen;
+                  const hy = y + Math.cos(rad) * handleLen;
+                  const isRotatingThis = rotatingMonitor === m.id;
+
+                  return (
+                    <g className="cursor-grab">
+                      {/* Handle line */}
+                      <line
+                        x1={x}
+                        y1={y}
+                        x2={hx}
+                        y2={hy}
+                        stroke={isRotatingThis ? "#f59e0b" : "#ef4444"}
+                        strokeWidth={3}
+                        strokeDasharray="6 3"
+                        opacity={0.9}
+                      />
+                      {/* Draggable handle circle */}
+                      <circle
+                        cx={hx}
+                        cy={hy}
+                        r={10}
+                        fill={isRotatingThis ? "#f59e0b" : "#dc2626"}
+                        stroke="#ffffff"
+                        strokeWidth={2}
+                        className="cursor-grab"
+                        onMouseDown={(e) => handleMouseDown(m.id, e)}
+                      />
+                      {/* Rotation angle label */}
+                      <text
+                        x={hx + 14}
+                        y={hy}
+                        fill="#ffffff"
+                        fontSize={10}
+                        fontFamily="monospace"
+                        dominantBaseline="middle"
+                        fontWeight="bold"
+                      >
+                        {rot.toFixed(0)}°
+                      </text>
+                    </g>
+                  );
+                })()}
               </g>
             );
           })}
