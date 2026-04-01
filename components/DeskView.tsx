@@ -430,7 +430,7 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
   useEffect(() => { localArrangementsRef.current = localArrangements; }, [localArrangements]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const dragStart = useRef<{ mouseX: number; arr: MonitorArrangement3D } | null>(null);
+  const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D } | null>(null);
   const REF_DISTANCE = 70;
 
   // Sync local arrangements from parent only when not dragging
@@ -461,8 +461,14 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
     const minXCm = -totalPhysCm / 2 + halfW;
     const maxXCm = totalPhysCm / 2 - halfW;
     const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.arr.xCm + dxCm));
-    setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm } : arr));
-  }, [draggingId, totalPhysCm]);
+
+    // Y-axis dragging - up/down movement (diagonal drag)
+    const dy = e.clientY - dragStart.current.mouseY;
+    const dyCm = -dy / SCALE; // invert: dragging up = positive yCm
+    const newYCm = dragStart.current.arr.yCm + dyCm;
+
+    setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm, yCm: newYCm } : arr));
+  }, [draggingId, totalPhysCm, SCALE]);
 
   const handlePointerUp = useCallback(() => {
     if (draggingId) {
@@ -529,7 +535,7 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          const DESK_Y = HEAD_Y + 20 + (headDistance - REF_DISTANCE) * 1.5;
+          const DESK_Y = HEAD_Y - 20 - (headDistance - REF_DISTANCE) * 1.5;
           const yMon = DESK_Y - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
@@ -544,11 +550,11 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
               {curved ? (
                 <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadius * 0.05} ${curveRadius * 0.05} 0 0 1 ${cx + wPx/2} ${yMon}`}
                   fill="none" stroke="#F59E0B" strokeWidth={6} strokeLinecap="round" style={{ cursor: "grab" }}
-                  onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
+                  onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr }; }} />
               ) : (
                 <line x1={cx - wPx/2} y1={yMon} x2={cx + wPx/2} y2={yMon}
                   stroke="#5a5a6a" strokeWidth={6} strokeLinecap="round" style={{ cursor: "grab" }}
-                  onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
+                  onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr }; }} />
               )}
 
               <text x={cx} y={yMon - 12} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
