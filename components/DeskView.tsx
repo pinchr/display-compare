@@ -559,11 +559,10 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
                 y1={yMon}
                 x2={lineEndX}
                 y2={HEAD_Y}
-                stroke={rotatingId === arr.id ? "#fbbf24" : "#3a3a48"}
-                strokeWidth={2}
-                strokeDasharray="6 3"
-                opacity={0.8}
-                style={{ cursor: "ew-resize" }}
+                stroke={rotatingId === arr.id ? "#fbbf24" : "#6b7280"}
+                strokeWidth={6}
+                opacity={0.6}
+                style={{ cursor: "ew-resize", pointerEvents: "stroke" }}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   setRotatingId(arr.id);
@@ -583,8 +582,14 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
 
               <text x={cx} y={yMon - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
 
-              {/* Small drag indicator at head-end of the line */}
-              <circle cx={lineEndX} cy={HEAD_Y} r={5} fill={rotatingId === arr.id ? "#fbbf24" : "#6b7280"} stroke="#ffffff" strokeWidth={1} style={{ cursor: "ew-resize" }} />
+              {/* Small drag indicator at head-end of the line - slightly bigger */}
+              <circle cx={lineEndX} cy={HEAD_Y} r={7} fill={rotatingId === arr.id ? "#fbbf24" : "#4b5563"} stroke="#ffffff" strokeWidth={1.5} style={{ cursor: "ew-resize", pointerEvents: "all" }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  setRotatingId(arr.id);
+                  rotateStart.current = { mouseX: e.clientX, arr, startLineEndX: lineEndX };
+                }}
+              />
             </g>
           );
         })}
