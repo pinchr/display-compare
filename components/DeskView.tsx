@@ -118,6 +118,8 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [showBanana, setShowBanana] = useState(false);
   const [showIPhone, setShowIPhone] = useState(false);
+  const [deskWidthCm, setDeskWidthCm] = useState(180); // desk width in cm
+  const [deskDepthCm, setDeskDepthCm] = useState(80); // desk depth in cm
   const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D; startXCm: number; startYCm: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -268,6 +270,13 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
             📱 iPhone
           </button>
         </div>
+        <div className="flex items-center gap-3 mt-2 text-[9px]">
+          <span className="text-text-tertiary">Desk:</span>
+          <span className="text-text-tertiary">W:<input type="range" min={100} max={300} value={deskWidthCm}
+            onChange={(e) => setDeskWidthCm(parseInt(e.target.value))} className="w-16 accent-amber-600 mx-1" />{deskWidthCm}cm</span>
+          <span className="text-text-tertiary">D:<input type="range" min={40} max={120} value={deskDepthCm}
+            onChange={(e) => setDeskDepthCm(parseInt(e.target.value))} className="w-12 accent-amber-600 mx-1" />{deskDepthCm}cm</span>
+        </div>
       </div>
 
       <div ref={containerRef} className="relative rounded-xl border border-border bg-[#1e1e24] overflow-hidden select-none"
@@ -325,6 +334,33 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
             </div>
           );
         })}
+
+        {/* Desk surface - simple trapezoid receding into distance */}
+        <div className="absolute pointer-events-none" style={{
+          left: '50%',
+          bottom: '0px',
+          width: `${deskWidthCm * pxPerCm}px`,
+          height: '120px',
+          transform: 'translateX(-50%)',
+        }}>
+          {/* Main desk surface */}
+          <svg width="100%" height="100%" viewBox="0 0 800 120" preserveAspectRatio="none" className="absolute inset-0">
+            <defs>
+              <linearGradient id="deskGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#3a3530" />
+                <stop offset="40%" stopColor="#2a2520" />
+                <stop offset="100%" stopColor="#1a1815" />
+              </linearGradient>
+            </defs>
+            {/* Trapezoid - wider at bottom, narrower at top (perspective) */}
+            <polygon points="100,0 700,0 800,120 0,120" fill="url(#deskGrad)" stroke="#4a4540" strokeWidth="2" />
+            {/* Wood grain lines */}
+            <line x1="150" y1="0" x2="50" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <line x1="300" y1="0" x2="200" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <line x1="500" y1="0" x2="600" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <line x1="650" y1="0" x2="750" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+          </svg>
+        </div>
 
         {/* Scale references - banana (18cm) and iPhone (15cm width) */}
         {showBanana && (
