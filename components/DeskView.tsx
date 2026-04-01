@@ -319,6 +319,28 @@ function FrontView({ monitors, arrangements, headDistance, deskWidthCm, deskDept
       >
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`, backgroundSize: "20px 20px" }} />
 
+        {/* Desk surface - rendered FIRST so monitors appear on top */}
+        <div className="absolute pointer-events-none" style={{
+          left: '50%',
+          bottom: '0px',
+          width: `${deskWidthCm * pxPerCm}px`,
+          height: '80px',
+          transform: 'translateX(-50%)',
+        }}>
+          <svg width="100%" height="100%" viewBox="0 0 800 80" preserveAspectRatio="none" className="absolute inset-0">
+            <defs>
+              <linearGradient id="deskGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#3a3530" />
+                <stop offset="100%" stopColor="#1a1815" />
+              </linearGradient>
+            </defs>
+            <polygon points="50,0 750,0 800,80 0,80" fill="url(#deskGrad)" stroke="#4a4540" strokeWidth="2" />
+            <line x1="150" y1="0" x2="80" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <line x1="400" y1="0" x2="400" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <line x1="650" y1="0" x2="720" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+          </svg>
+        </div>
+
         {/* Eye position */}
         <div className="absolute left-1/2 pointer-events-none" style={{ top: EYE_Y }}>
           <div className="w-4 h-4 -ml-2 rounded-full bg-amber-500/40 border-2 border-amber-500/60" />
@@ -372,28 +394,6 @@ function FrontView({ monitors, arrangements, headDistance, deskWidthCm, deskDept
             </div>
           );
         })}
-
-        {/* Desk surface - scales with perspective, positioned at DESK_SURFACE_Y */}
-        <div className="absolute pointer-events-none" style={{
-          left: '50%',
-          bottom: `${CANVAS_H - DESK_SURFACE_Y}px`,
-          width: `${deskWidthCm * pxPerCm}px`,
-          height: '80px',
-          transform: 'translateX(-50%)',
-        }}>
-          <svg width="100%" height="100%" viewBox="0 0 800 80" preserveAspectRatio="none" className="absolute inset-0">
-            <defs>
-              <linearGradient id="deskGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#3a3530" />
-                <stop offset="100%" stopColor="#1a1815" />
-              </linearGradient>
-            </defs>
-            <polygon points="50,0 750,0 800,80 0,80" fill="url(#deskGrad)" stroke="#4a4540" strokeWidth="2" />
-            <line x1="150" y1="0" x2="80" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
-            <line x1="400" y1="0" x2="400" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
-            <line x1="650" y1="0" x2="720" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
-          </svg>
-        </div>
 
         {/* Scale references - banana (18cm) and iPhone (15cm width) */}
         {showBanana && (
@@ -525,31 +525,33 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          // Monitors sit on desk (top-down: monitor frame at desk level)
+          // Monitors sit on desk (top-down view)
           const DESK_Y = HEAD_Y + 20;
           const yMon = DESK_Y - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
           const curveRadius = arr.monitor.curvatureRadius || 1500;
-          const curveRadiusPx = curveRadius * SCALE / 10;
 
           return (
             <g key={arr.id}>
-              {/* Stand from desk to monitor */}
+              {/* Monitor stand */}
               <line x1={cx} y1={yMon} x2={cx} y2={DESK_Y} stroke="#3a3a48" strokeWidth={2} opacity={0.6} />
 
-              {/* Monitor top view - flat = rectangle frame, curved = arc */}
+              {/* Monitor top view - FLAT = thick line, CURVED = arc */}
               {curved ? (
-                <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadiusPx} ${curveRadiusPx} 0 0 1 ${cx + wPx/2} ${yMon}`}
-                  fill="none" stroke="#F59E0B" strokeWidth={5} strokeLinecap="round" style={{ cursor: "grab" }}
+                // Curved monitor - draw arc representing the curved screen
+                // Arc radius scaled from R value - larger R = flatter curve
+                <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadius * 0.05} ${curveRadius * 0.05} 0 0 1 ${cx + wPx/2} ${yMon}`}
+                  fill="none" stroke="#F59E0B" strokeWidth={6} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
               ) : (
-                <rect x={cx - wPx/2} y={yMon - hCm * SCALE} width={wPx} height={hCm * SCALE}
-                  fill="#2a2a32" stroke="#5a5a6a" strokeWidth={3} rx={2} style={{ cursor: "grab" }}
+                // Flat monitor - just a thick horizontal line (the front bezel)
+                <line x1={cx - wPx/2} y1={yMon} x2={cx + wPx/2} y2={yMon}
+                  stroke="#5a5a6a" strokeWidth={6} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
               )}
 
-              <text x={cx} y={yMon - hCm * SCALE - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
+              <text x={cx} y={yMon - 12} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
             </g>
           );
         })}
