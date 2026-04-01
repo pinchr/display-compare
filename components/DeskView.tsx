@@ -134,13 +134,15 @@ function FrontView({ monitors, arrangements, headDistance, deskWidthCm, deskDept
   const CANVAS_H = 700;
   const EYE_Y = CANVAS_H / 2;
   const REF_DISTANCE = 70; // reference head distance for scale
-  const DESK_SURFACE_Y = CANVAS_H - 80; // fixed y position of desk surface
 
   const totalPhysCm = useMemo(() => monitors.reduce((sum, m) => sum + calcWidthCm(m.diagonal, m.widthPx, m.heightPx), 0) + (monitors.length - 1) * 3, [monitors]);
   const basePxPerCm = 1200 / totalPhysCm;
-  // Perspective: farther head = smaller monitors
+  // Perspective: farther head = smaller monitors + desk appears higher (further away)
   const perspectiveScale = REF_DISTANCE / headDistance;
   const pxPerCm = basePxPerCm * perspectiveScale;
+  // Desk position: appears lower when close, higher when far (closer to horizon)
+  // Base desk Y is at bottom, moves up toward horizon as distance increases
+  const DESK_SURFACE_Y = CANVAS_H - 60 - (headDistance - REF_DISTANCE) * 1.5;
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingId || !dragStart.current || !containerRef.current) return;
@@ -429,6 +431,7 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const dragStart = useRef<{ mouseX: number; arr: MonitorArrangement3D } | null>(null);
+  const REF_DISTANCE = 70;
 
   // Sync local arrangements from parent only when not dragging
   useEffect(() => {
@@ -521,12 +524,12 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           <path d="M -20 17 Q -10 27 0 24 Q 10 27 20 17" fill="#222228" stroke="#3a3a44" strokeWidth={1} />
         </g>
 
+        {/* Monitors and desk - positioned relative to desk */}
         {arrangements.map((arr, idx) => {
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          // Monitors sit on desk (top-down view)
-          const DESK_Y = HEAD_Y + 20;
+          const DESK_Y = HEAD_Y + 20 + (headDistance - REF_DISTANCE) * 1.5;
           const yMon = DESK_Y - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
@@ -539,13 +542,10 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
 
               {/* Monitor top view - FLAT = thick line, CURVED = arc */}
               {curved ? (
-                // Curved monitor - draw arc representing the curved screen
-                // Arc radius scaled from R value - larger R = flatter curve
                 <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadius * 0.05} ${curveRadius * 0.05} 0 0 1 ${cx + wPx/2} ${yMon}`}
                   fill="none" stroke="#F59E0B" strokeWidth={6} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
               ) : (
-                // Flat monitor - just a thick horizontal line (the front bezel)
                 <line x1={cx - wPx/2} y1={yMon} x2={cx + wPx/2} y2={yMon}
                   stroke="#5a5a6a" strokeWidth={6} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
@@ -556,8 +556,8 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           );
         })}
 
-        {/* Desk rectangle - proper rectangle for top-down view */}
-        <rect x={HEAD_X - deskWidthCm * SCALE / 2} y={DESK_Y} width={deskWidthCm * SCALE} height={deskDepthCm * SCALE}
+        {/* Desk rectangle */}
+        <rect x={HEAD_X - deskWidthCm * SCALE / 2} y={HEAD_Y + 20 + (headDistance - REF_DISTANCE) * 1.5} width={deskWidthCm * SCALE} height={deskDepthCm * SCALE}
           fill="#3a3530" stroke="#4a4540" strokeWidth={2} />
       </svg>
 
