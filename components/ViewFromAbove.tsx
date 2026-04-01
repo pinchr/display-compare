@@ -85,11 +85,10 @@ export default function ViewFromAbove({ monitors, arrangements, onRotationChange
     if (!pos) return;
 
     // Calculate angle from monitor center to mouse
+    // This angle becomes the rotation (monitor will be perpendicular to this direction)
     const dx = mouseX - pos.x;
     const dy = mouseY - pos.y;
-    // The monitor's front is perpendicular to the direction towards head
-    // If we drag the handle, the angle determines rotation
-    const angleRad = Math.atan2(dx, dy);
+    const angleRad = Math.atan2(dy, dx);
     const rotationDeg = angleRad * (180 / Math.PI);
 
     setCustomRotations(prev => ({ ...prev, [rotatingMonitor]: rotationDeg }));
@@ -509,51 +508,57 @@ export default function ViewFromAbove({ monitors, arrangements, onRotationChange
                   {Math.round(widthsCm[mono.findIndex((m2) => m2.id === m.id)])}cm
                 </text>
 
-                {/* Rotation handle — drag to rotate monitor */}
+                {/* Rotation handle — drag to rotate monitor.
+                    Line goes from monitor center TOWARD the head.
+                    When you drag, the monitor rotates to stay perpendicular to this line. */}
                 {(() => {
                   const rot = customRotations[m.id] ?? pos.rotation;
-                  const handleLen = 60;
-                  // Line extends from center in direction of rotation (towards head)
-                  const rad = (rot * Math.PI) / 180;
-                  const hx = x + Math.sin(rad) * handleLen;
-                  const hy = y + Math.cos(rad) * handleLen;
+                  // Handle extends from monitor center toward head (always downward in bird's eye)
+                  const handleLen = 50;
+                  const hx = x;
+                  const hy = y + handleLen; // toward head (bottom of screen)
                   const isRotatingThis = rotatingMonitor === m.id;
 
                   return (
-                    <g className="cursor-grab">
-                      {/* Handle line */}
+                    <g>
+                      {/* Handle line — from center toward head */}
                       <line
                         x1={x}
                         y1={y}
                         x2={hx}
                         y2={hy}
-                        stroke={isRotatingThis ? "#f59e0b" : "#ef4444"}
-                        strokeWidth={3}
-                        strokeDasharray="6 3"
-                        opacity={0.9}
+                        stroke={isRotatingThis ? "#fbbf24" : "#f97316"}
+                        strokeWidth={4}
+                        strokeLinecap="round"
                       />
-                      {/* Draggable handle circle */}
+                      {/* Arrow head at end (toward head) */}
+                      <polygon
+                        points={`${hx-6},${hy} ${hx+6},${hy} ${hx},${hy+8}`}
+                        fill={isRotatingThis ? "#fbbf24" : "#f97316"}
+                      />
+                      {/* Draggable circle at midpoint — grab point for rotation */}
                       <circle
-                        cx={hx}
-                        cy={hy}
-                        r={10}
-                        fill={isRotatingThis ? "#f59e0b" : "#dc2626"}
+                        cx={x}
+                        cy={y + handleLen / 2}
+                        r={12}
+                        fill={isRotatingThis ? "#fbbf24" : "#ea580c"}
                         stroke="#ffffff"
                         strokeWidth={2}
                         className="cursor-grab"
                         onMouseDown={(e) => handleMouseDown(m.id, e)}
                       />
-                      {/* Rotation angle label */}
                       <text
-                        x={hx + 14}
-                        y={hy}
+                        x={x}
+                        y={y + handleLen / 2}
                         fill="#ffffff"
                         fontSize={10}
                         fontFamily="monospace"
+                        textAnchor="middle"
                         dominantBaseline="middle"
                         fontWeight="bold"
+                        pointerEvents="none"
                       >
-                        {rot.toFixed(0)}°
+                        ↻
                       </text>
                     </g>
                   );
