@@ -118,13 +118,11 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   }, [arrangements]);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [showBanana, setShowBanana] = useState(false);
   const [showIPhone, setShowIPhone] = useState(false);
   const [deskWidthCm, setDeskWidthCm] = useState(180);
   const [deskDepthCm, setDeskDepthCm] = useState(70);
-  const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D; startXCm: number; startYCm: number } | null>(null);
-  const rotateStart = useRef<{ mouseX: number; arr: MonitorArrangement3D; handleX: number } | null>(null);
+  const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync local arrangements from parent only when not dragging
@@ -146,27 +144,8 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   const pxPerCm = basePxPerCm * perspectiveScale;
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!containerRef.current) return;
-
-    // Handle rotation dragging
-    if (rotatingId && rotateStart.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const dx = mouseX - rotateStart.current.mouseX;
-
-      // Calculate new rotation based on horizontal drag
-      // Each pixel of drag = some degrees
-      const degPerPx = 0.5;
-      const newRotation = rotateStart.current.arr.rotation + dx * degPerPx;
-
-      setLocalArrangements(prev => prev.map(arr =>
-        arr.id === rotatingId ? { ...arr, rotation: newRotation } : arr
-      ));
-      return;
-    }
-
     // Handle position dragging
-    if (!draggingId || !dragStart.current) return;
+    if (!draggingId || !dragStart.current || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
@@ -183,24 +162,19 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
     const maxYCm = 60;
 
     // Both axes work simultaneously - drag diagonally
-    const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.startXCm + dx / pxPerCm));
-    const newYCm = Math.max(minYCm, Math.min(maxYCm, dragStart.current.startYCm + dy / 2));
+    const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.arr.xCm + dx / pxPerCm));
+    const newYCm = Math.max(minYCm, Math.min(maxYCm, dragStart.current.arr.yCm + dy / 2));
 
     setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm, yCm: newYCm } : arr));
-  }, [draggingId, rotatingId, pxPerCm]);
+  }, [draggingId, pxPerCm]);
 
   const handlePointerUp = useCallback(() => {
     if (draggingId) {
       onArrangementsChange(localArrangementsRef.current);
     }
-    if (rotatingId) {
-      onArrangementsChange(localArrangementsRef.current);
-    }
     setDraggingId(null);
-    setRotatingId(null);
     dragStart.current = null;
-    rotateStart.current = null;
-  }, [draggingId, rotatingId, onArrangementsChange]);
+  }, [draggingId, onArrangementsChange]);
 
   const resetLayout = () => {
     let offset = -totalPhysCm / 2;
@@ -372,7 +346,7 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
             <div key={arr.id}
               className={`absolute rounded-lg overflow-hidden ${draggingId === arr.id ? "ring-2 ring-accent" : ""}`}
               style={{ left: `${xPx}px`, top: `${yPx}px`, width: `${wPx}px`, height: `${hPx}px`, opacity, boxShadow: "0 8px 40px rgba(0,0,0,0.9), 0 0 0 2px #3a3a40", cursor: draggingId === arr.id ? "grabbing" : "grab" }}
-              onPointerDown={(e) => { e.stopPropagation(); const rect = containerRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr, startXCm: arr.xCm, startYCm: arr.yCm }; }}
+              onPointerDown={(e) => { if (e.target === e.currentTarget) { e.stopPropagation(); const rect = containerRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr }; } }}
             >
               <div className="absolute inset-0 rounded-lg bg-[#2a2a30]" />
               <div className="absolute inset-[4px] rounded bg-[#18181c]">
@@ -384,9 +358,12 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
               </div>
               {windows.map(pw => {
                 const size = getWindowVisualSize(pw);
+                // Position relative to monitor div
+                const relX = pw.x - xPx;
+                const relY = pw.y - yPx;
                 return (
-                  <div key={pw.instanceId} className="absolute rounded overflow-hidden shadow-lg border border-white/20"
-                    style={{ left: `${pw.x}px`, top: `${pw.y}px`, width: `${size.w}px`, height: `${size.h}px`, background: `${pw.app.color}40` }}>
+                  <div key={pw.instanceId} className="absolute rounded overflow-hidden shadow-lg border border-white/20 cursor-move"
+                    style={{ left: `${relX}px`, top: `${relY}px`, width: `${size.w}px`, height: `${size.h}px`, background: `${pw.app.color}40` }}>
                     <div className="flex items-center gap-0.5 px-1 py-px text-white/90 border-b border-white/10"
                       style={{ background: pw.app.color, minHeight: "14px", fontSize: `${Math.max(6, 7 * (uiScales[pw.monitorId] ?? 1.0))}px` }}>
                       <span>{pw.app.icon}</span>
@@ -596,48 +573,36 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          // Monitor sits on desk surface - yMon based on yCm (vertical stacking)
-          const DESK_Y = HEAD_Y + 20; // bottom of view = desk surface
-          const yMon = DESK_Y - hCm * SCALE - arr.yCm * SCALE;
+          // Monitor sits on desk surface at DESK_Y
+          const DESK_Y = HEAD_Y + 20;
+          const yMon = DESK_Y - hCm * SCALE - arr.yCm * SCALE; // top of monitor
           const wPx = wCm * SCALE;
-          const hPx = hCm * SCALE;
           const curved = arr.monitor.curved;
           const curveRadius = arr.monitor.curvatureRadius || 1500;
           const curveRadiusPx = curveRadius * SCALE / 10;
 
-          // Line from monitor toward head (shows depth direction)
-          const lineEndX = cx + Math.sin((arr.rotation * Math.PI) / 180) * headDistance * SCALE;
-
           return (
             <g key={arr.id}>
-              {/* Line from monitor toward head - shows depth direction */}
-              <line
-                x1={cx}
-                y1={yMon}
-                x2={cx}
-                y2={DESK_Y}
-                stroke="#6b7280"
-                strokeWidth={2}
-                opacity={0.4}
-              />
+              {/* Line from monitor to desk surface */}
+              <line x1={cx} y1={yMon + 8} x2={cx} y2={DESK_Y} stroke="#3a3a48" strokeWidth={1.5} opacity={0.5} />
 
-              {/* Monitor on desk surface */}
+              {/* Monitor front edge - line for flat, arc for curved */}
               {curved ? (
                 <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadiusPx} ${curveRadiusPx} 0 0 1 ${cx + wPx/2} ${yMon}`}
-                  fill="none" stroke="#F59E0B" strokeWidth={4} strokeLinecap="round" style={{ cursor: "grab" }}
+                  fill="none" stroke="#F59E0B" strokeWidth={5} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr }; }} />
               ) : (
-                <rect x={cx - wPx/2} y={yMon - hPx} width={wPx} height={hPx}
-                  fill="#2a2a32" stroke="#5a5a6a" strokeWidth={3} rx={2} style={{ cursor: "grab" }}
+                <line x1={cx - wPx/2} y1={yMon} x2={cx + wPx/2} y2={yMon}
+                  stroke="#5a5a6a" strokeWidth={5} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr }; }} />
               )}
 
-              <text x={cx} y={yMon - hPx - 8} fill="#6a6a7a" fontSize={8} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
+              <text x={cx} y={yMon - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
             </g>
           );
         })}
 
-        {/* Desk surface line */}
+        {/* Desk surface line - stays under monitors */}
         <line x1={50} y1={HEAD_Y + 20} x2={CANVAS_W - 50} y2={HEAD_Y + 20} stroke="#4a4540" strokeWidth={2} />
       </svg>
 
