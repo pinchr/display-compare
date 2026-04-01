@@ -583,11 +583,12 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
               <text x={cx} y={yMon - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
 
               {/* Small drag indicator at head-end of the line - slightly bigger */}
-              <circle cx={lineEndX} cy={HEAD_Y} r={7} fill={rotatingId === arr.id ? "#fbbf24" : "#4b5563"} stroke="#ffffff" strokeWidth={1.5} style={{ cursor: "ew-resize", pointerEvents: "all" }}
+              <circle cx={lineEndX} cy={HEAD_Y} r={7} fill={rotatingId === arr.id ? "#fbbf24" : "#4b5563"} stroke="#ffffff" strokeWidth={1.5} style={{ cursor: "ew-resize" }}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   setRotatingId(arr.id);
                   rotateStart.current = { mouseX: e.clientX, arr, startLineEndX: lineEndX };
+                  (e.currentTarget as SVGCircleElement).setPointerCapture(e.pointerId);
                 }}
               />
             </g>
