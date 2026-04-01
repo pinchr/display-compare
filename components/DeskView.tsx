@@ -134,6 +134,7 @@ function FrontView({ monitors, arrangements, headDistance, deskWidthCm, deskDept
   const CANVAS_H = 700;
   const EYE_Y = CANVAS_H / 2;
   const REF_DISTANCE = 70; // reference head distance for scale
+  const DESK_SURFACE_Y = CANVAS_H - 80; // fixed y position of desk surface
 
   const totalPhysCm = useMemo(() => monitors.reduce((sum, m) => sum + calcWidthCm(m.diagonal, m.widthPx, m.heightPx), 0) + (monitors.length - 1) * 3, [monitors]);
   const basePxPerCm = 1200 / totalPhysCm;
@@ -334,7 +335,8 @@ function FrontView({ monitors, arrangements, headDistance, deskWidthCm, deskDept
           const wPx = wCm * pxPerCm;
           const hPx = hCm * pxPerCm;
           const xPx = 600 + arr.xCm * pxPerCm - wPx / 2;
-          const yPx = EYE_Y + arr.yCm * 2 - hPx / 2;
+          // Monitor sits on desk surface - bottom of monitor at DESK_SURFACE_Y
+          const yPx = DESK_SURFACE_Y - hPx - arr.yCm * pxPerCm;
           const windows = placedWindows.filter(pw => pw.monitorId === arr.id);
           const inFOV = isInFOV(arr.yCm);
           const overlapPct = getOverlapPercent(arr);
@@ -371,27 +373,25 @@ function FrontView({ monitors, arrangements, headDistance, deskWidthCm, deskDept
           );
         })}
 
-        {/* Desk surface - scales with perspective, always under monitors */}
+        {/* Desk surface - scales with perspective, positioned at DESK_SURFACE_Y */}
         <div className="absolute pointer-events-none" style={{
           left: '50%',
-          bottom: '0px',
+          bottom: `${CANVAS_H - DESK_SURFACE_Y}px`,
           width: `${deskWidthCm * pxPerCm}px`,
-          height: `${deskDepthCm * pxPerCm * 0.3}px`,
+          height: '80px',
           transform: 'translateX(-50%)',
         }}>
-          <svg width="100%" height="100%" viewBox="0 0 800 120" preserveAspectRatio="none" className="absolute inset-0">
+          <svg width="100%" height="100%" viewBox="0 0 800 80" preserveAspectRatio="none" className="absolute inset-0">
             <defs>
               <linearGradient id="deskGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#3a3530" />
-                <stop offset="40%" stopColor="#2a2520" />
                 <stop offset="100%" stopColor="#1a1815" />
               </linearGradient>
             </defs>
-            <polygon points="100,0 700,0 800,120 0,120" fill="url(#deskGrad)" stroke="#4a4540" strokeWidth="2" />
-            <line x1="150" y1="0" x2="50" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
-            <line x1="300" y1="0" x2="200" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
-            <line x1="500" y1="0" x2="600" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
-            <line x1="650" y1="0" x2="750" y2="120" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <polygon points="50,0 750,0 800,80 0,80" fill="url(#deskGrad)" stroke="#4a4540" strokeWidth="2" />
+            <line x1="150" y1="0" x2="80" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <line x1="400" y1="0" x2="400" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
+            <line x1="650" y1="0" x2="720" y2="80" stroke="#2a2520" strokeWidth="1" opacity="0.3" />
           </svg>
         </div>
 
@@ -525,10 +525,9 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          // Monitors sit ON the desk (desk is at bottom, monitors above it)
-          // yMon is above the head line (y decreases going up = farther on screen)
-          const DESK_Y = HEAD_Y + 10; // desk surface at head level
-          const yMon = DESK_Y - hCm * SCALE - arr.yCm * SCALE;
+          // Monitors sit on desk (top-down: monitor frame at desk level)
+          const DESK_Y = HEAD_Y + 20;
+          const yMon = DESK_Y - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
           const curveRadius = arr.monitor.curvatureRadius || 1500;
@@ -536,10 +535,10 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
 
           return (
             <g key={arr.id}>
-              {/* Vertical line from desk to monitor */}
-              <line x1={cx} y1={yMon + hCm * SCALE} x2={cx} y2={DESK_Y} stroke="#3a3a48" strokeWidth={1.5} opacity={0.5} />
+              {/* Stand from desk to monitor */}
+              <line x1={cx} y1={yMon} x2={cx} y2={DESK_Y} stroke="#3a3a48" strokeWidth={2} opacity={0.6} />
 
-              {/* Monitor front edge */}
+              {/* Monitor top view - flat = rectangle frame, curved = arc */}
               {curved ? (
                 <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadiusPx} ${curveRadiusPx} 0 0 1 ${cx + wPx/2} ${yMon}`}
                   fill="none" stroke="#F59E0B" strokeWidth={5} strokeLinecap="round" style={{ cursor: "grab" }}
@@ -551,27 +550,13 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
               )}
 
               <text x={cx} y={yMon - hCm * SCALE - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
-
-              <g transform={`translate(${cx + wPx/2 + 12}, ${yMon})`}>
-                <circle cx={0} cy={0} r={7} fill="#3a3a48" style={{ cursor: "pointer" }}
-                  onClick={(e) => { e.stopPropagation(); const newRot = arr.rotation === 0 ? 15 : arr.rotation === 15 ? -15 : 0; setLocalArrangements(prev => prev.map(a => a.id === arr.id ? { ...a, rotation: newRot } : a)); onArrangementsChange(localArrangements.map(a => a.id === arr.id ? { ...a, rotation: newRot } : a)); }} />
-                <text x={0} y={3} fill="#6a6a7a" fontSize={6} textAnchor="middle" fontFamily="monospace">{arr.rotation !== 0 ? `${arr.rotation > 0 ? "+" : ""}${arr.rotation}` : "↻"}</text>
-              </g>
             </g>
           );
         })}
 
-        {/* Desk rectangle - perspective trapezoid representing desk from above */}
-        <g>
-          {/* Desk surface as trapezoid - centered under monitors */}
-          <polygon
-            points={`${HEAD_X - deskWidthCm * SCALE / 2},${DESK_Y + 5}
-                     ${HEAD_X + deskWidthCm * SCALE / 2},${DESK_Y + 5}
-                     ${HEAD_X + deskWidthCm * SCALE / 2 + 20},${DESK_Y + 30}
-                     ${HEAD_X - deskWidthCm * SCALE / 2 - 20},${DESK_Y + 30}`}
-            fill="#3a3530" stroke="#4a4540" strokeWidth="2"
-          />
-        </g>
+        {/* Desk rectangle - proper rectangle for top-down view */}
+        <rect x={HEAD_X - deskWidthCm * SCALE / 2} y={DESK_Y} width={deskWidthCm * SCALE} height={deskDepthCm * SCALE}
+          fill="#3a3530" stroke="#4a4540" strokeWidth={2} />
       </svg>
 
       <div className="flex items-center justify-center gap-6 mt-2 text-[9px] text-text-tertiary">
