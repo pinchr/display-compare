@@ -116,6 +116,8 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   }, [arrangements]);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [showBanana, setShowBanana] = useState(false);
+  const [showIPhone, setShowIPhone] = useState(false);
   const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D; startXCm: number; startYCm: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -255,6 +257,17 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
             );
           })}
         </div>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-[9px] text-text-tertiary">Scale refs:</span>
+          <button onClick={() => setShowBanana(b => !b)}
+            className={`px-2 py-1 text-[9px] rounded ${showBanana ? 'bg-yellow-500/30 text-yellow-300' : 'bg-bg-tertiary text-text-tertiary'}`}>
+            🍌 Banana
+          </button>
+          <button onClick={() => setShowIPhone(b => !b)}
+            className={`px-2 py-1 text-[9px] rounded ${showIPhone ? 'bg-blue-500/30 text-blue-300' : 'bg-bg-tertiary text-text-tertiary'}`}>
+            📱 iPhone
+          </button>
+        </div>
       </div>
 
       <div ref={containerRef} className="relative rounded-xl border border-border bg-[#1e1e24] overflow-hidden select-none"
@@ -312,6 +325,28 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
             </div>
           );
         })}
+
+        {/* Scale references - banana (18cm) and iPhone (15cm width) */}
+        {showBanana && (
+          <div className="absolute pointer-events-none" style={{ left: '50px', bottom: '60px' }}>
+            <div className="flex flex-col items-center">
+              <div className="bg-yellow-400 rounded-full" style={{ width: `${18 * pxPerCm}px`, height: `${18 * pxPerCm * 0.35}px`, borderRadius: '50% / 60%', transform: 'rotate(-15deg)' }} />
+              <span className="text-[8px] text-yellow-300/70 mt-1">🍌 18cm</span>
+            </div>
+          </div>
+        )}
+        {showIPhone && (
+          <div className="absolute pointer-events-none" style={{ left: '50px', bottom: '120px' }}>
+            <div className="flex flex-col items-center">
+              <div className="bg-gray-800 rounded-xl border-2 border-gray-600 overflow-hidden" style={{ width: `${7.5 * pxPerCm}px`, height: `${15 * pxPerCm}px` }}>
+                <div className="h-full bg-gradient-to-b from-gray-700 to-black flex items-center justify-center">
+                  <span className="text-[6px] text-white/30">iPhone</span>
+                </div>
+              </div>
+              <span className="text-[8px] text-blue-300/70 mt-1">📱 15cm</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
