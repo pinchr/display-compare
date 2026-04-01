@@ -14,6 +14,11 @@ export default function OverlayCanvas({ monitors }: OverlayCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scale, setScale] = useState<"real" | "normalized">("normalized");
 
+  // Sync visibleMonitors when monitors list changes
+  useEffect(() => {
+    setVisibleMonitors(new Set(monitors.map((m) => m.id)));
+  }, [monitors]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || monitors.length === 0) return;
@@ -178,12 +183,12 @@ export default function OverlayCanvas({ monitors }: OverlayCanvasProps) {
       <div className="relative rounded-xl border border-border bg-bg-secondary overflow-hidden">
         <canvas
           ref={canvasRef}
-          width={320}
-          height={320}
-          className="w-full max-w-[320px] mx-auto"
+          width={400}
+          height={400}
+          className="w-full max-w-[400px] mx-auto"
         />
         <div className="absolute bottom-2 right-2 text-[10px] text-text-tertiary">
-          (nałożenie w skali)
+          (nałożenie w skali 1:1 cm)
         </div>
       </div>
     </div>

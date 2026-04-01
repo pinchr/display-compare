@@ -108,7 +108,10 @@ export default function Home() {
         {selectedMonitors.length >= 2 && (
           <section className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
             <div className="rounded-2xl border border-border bg-bg-secondary p-6">
-              <WorkspaceSimulator monitors={selectedMonitors.slice(0, MAX_SIMULATOR_MONITORS)} />
+              <WorkspaceSimulator
+                key={selectedMonitors.map((m) => m.id).join(",")}
+                monitors={selectedMonitors.slice(0, MAX_SIMULATOR_MONITORS)}
+              />
             </div>
           </section>
         )}
