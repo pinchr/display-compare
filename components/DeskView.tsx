@@ -67,6 +67,8 @@ export default function DeskView({ monitors, arrangements, onArrangementsChange 
 
   const [sharedArrangements, setSharedArrangements] = useState<MonitorArrangement3D[]>(getInitialArrangements);
   const [sharedHeadDistance, setSharedHeadDistance] = useState(94);
+  const [deskWidthCm, setDeskWidthCm] = useState(180);
+  const [deskDepthCm, setDeskDepthCm] = useState(70);
   const isInitialized = useRef(false);
 
   useEffect(() => {
@@ -91,14 +93,14 @@ export default function DeskView({ monitors, arrangements, onArrangementsChange 
         <p className="text-[9px] text-text-tertiary mt-0.5">Drag monitors in either view • Both views sync in real-time</p>
       </div>
       <div className="p-4 space-y-4">
-        <FrontView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} />
-        <TopView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} />
+        <FrontView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} deskWidthCm={deskWidthCm} deskDepthCm={deskDepthCm} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} onDeskSizeChange={(w, d) => { setDeskWidthCm(w); setDeskDepthCm(d); }} />
+        <TopView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} deskWidthCm={deskWidthCm} deskDepthCm={deskDepthCm} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} />
       </div>
     </div>
   );
 }
 
-function FrontView({ monitors, arrangements, headDistance, onArrangementsChange, onHeadDistanceChange }: { monitors: Monitor[]; arrangements: MonitorArrangement3D[]; headDistance: number; onArrangementsChange: (arr: MonitorArrangement3D[]) => void; onHeadDistanceChange: (d: number) => void }) {
+function FrontView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthCm, onArrangementsChange, onHeadDistanceChange, onDeskSizeChange }: { monitors: Monitor[]; arrangements: MonitorArrangement3D[]; headDistance: number; deskWidthCm: number; deskDepthCm: number; onArrangementsChange: (arr: MonitorArrangement3D[]) => void; onHeadDistanceChange: (d: number) => void; onDeskSizeChange?: (w: number, d: number) => void }) {
   const [placedWindows, setPlacedWindows] = useState<PlacedWindow[]>([]);
   const [selectedMockup, setSelectedMockup] = useState<Mockup | null>(null);
   const defaultScales = useMemo(() => { const r: Record<string, number> = {}; monitors.forEach(m => { r[m.id] = Math.round((calcPPI(m.widthPx, m.heightPx, m.diagonal) / 96) * 100) / 100; }); return r; }, [monitors]);
@@ -118,8 +120,6 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [showBanana, setShowBanana] = useState(false);
   const [showIPhone, setShowIPhone] = useState(false);
-  const [deskWidthCm, setDeskWidthCm] = useState(180);
-  const [deskDepthCm, setDeskDepthCm] = useState(70);
   const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D; startXCm: number; startYCm: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -304,10 +304,10 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
         <div className="flex items-center gap-2 mt-2">
           <span className="text-[9px] text-text-tertiary">Desk:</span>
           <span className="text-[9px] text-text-tertiary">W:<input type="range" min={100} max={300} step={5} value={deskWidthCm}
-            onChange={(e) => setDeskWidthCm(parseInt(e.target.value))}
+            onChange={(e) => onDeskSizeChange?.(parseInt(e.target.value), deskDepthCm)}
             className="w-16 accent-amber-600 mx-1" />{deskWidthCm}cm</span>
           <span className="text-[9px] text-text-tertiary">D:<input type="range" min={40} max={120} step={5} value={deskDepthCm}
-            onChange={(e) => setDeskDepthCm(parseInt(e.target.value))}
+            onChange={(e) => onDeskSizeChange?.(deskWidthCm, parseInt(e.target.value))}
             className="w-12 accent-amber-600 mx-1" />{deskDepthCm}cm</span>
         </div>
       </div>
@@ -371,12 +371,12 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
           );
         })}
 
-        {/* Desk surface - fixed size, does NOT scale with headDistance */}
+        {/* Desk surface - scales with perspective, always under monitors */}
         <div className="absolute pointer-events-none" style={{
           left: '50%',
           bottom: '0px',
-          width: `${deskWidthCm * basePxPerCm}px`,
-          height: '120px',
+          width: `${deskWidthCm * pxPerCm}px`,
+          height: `${deskDepthCm * pxPerCm * 0.3}px`,
           transform: 'translateX(-50%)',
         }}>
           <svg width="100%" height="100%" viewBox="0 0 800 120" preserveAspectRatio="none" className="absolute inset-0">
@@ -421,7 +421,7 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   );
 }
 
-function TopView({ monitors, arrangements, headDistance, onArrangementsChange, onHeadDistanceChange }: { monitors: Monitor[]; arrangements: MonitorArrangement3D[]; headDistance: number; onArrangementsChange: (arr: MonitorArrangement3D[]) => void; onHeadDistanceChange: (d: number) => void }) {
+function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthCm, onArrangementsChange, onHeadDistanceChange }: { monitors: Monitor[]; arrangements: MonitorArrangement3D[]; headDistance: number; deskWidthCm: number; deskDepthCm: number; onArrangementsChange: (arr: MonitorArrangement3D[]) => void; onHeadDistanceChange: (d: number) => void }) {
   const isDraggingRef = useRef(false);
   const [localArrangements, setLocalArrangements] = useState<MonitorArrangement3D[]>(arrangements);
   const localArrangementsRef = useRef(localArrangements);
@@ -441,6 +441,7 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
   const CANVAS_H = 340;
   const HEAD_X = CANVAS_W / 2;
   const HEAD_Y = CANVAS_H - 30;
+  const DESK_Y = HEAD_Y + 10; // desk surface at head level
   const SCALE = 1.5;
 
   const totalPhysCm = useMemo(() => monitors.reduce((sum, m) => sum + calcWidthCm(m.diagonal, m.widthPx, m.heightPx), 0) + (monitors.length - 1) * 3, [monitors]);
@@ -522,8 +523,12 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
 
         {arrangements.map((arr, idx) => {
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
+          const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          const yMon = HEAD_Y - 15 - headDistance * SCALE;
+          // Monitors sit ON the desk (desk is at bottom, monitors above it)
+          // yMon is above the head line (y decreases going up = farther on screen)
+          const DESK_Y = HEAD_Y + 10; // desk surface at head level
+          const yMon = DESK_Y - hCm * SCALE - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
           const curveRadius = arr.monitor.curvatureRadius || 1500;
@@ -531,19 +536,21 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
 
           return (
             <g key={arr.id}>
-              <line x1={cx} y1={yMon + 8} x2={cx} y2={HEAD_Y} stroke="#3a3a48" strokeWidth={1.5} opacity={0.5} />
+              {/* Vertical line from desk to monitor */}
+              <line x1={cx} y1={yMon + hCm * SCALE} x2={cx} y2={DESK_Y} stroke="#3a3a48" strokeWidth={1.5} opacity={0.5} />
 
+              {/* Monitor front edge */}
               {curved ? (
                 <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadiusPx} ${curveRadiusPx} 0 0 1 ${cx + wPx/2} ${yMon}`}
                   fill="none" stroke="#F59E0B" strokeWidth={5} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
               ) : (
-                <line x1={cx - wPx/2} y1={yMon} x2={cx + wPx/2} y2={yMon}
-                  stroke="#5a5a6a" strokeWidth={5} strokeLinecap="round" style={{ cursor: "grab" }}
+                <rect x={cx - wPx/2} y={yMon - hCm * SCALE} width={wPx} height={hCm * SCALE}
+                  fill="#2a2a32" stroke="#5a5a6a" strokeWidth={3} rx={2} style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, arr }; }} />
               )}
 
-              <text x={cx} y={yMon - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
+              <text x={cx} y={yMon - hCm * SCALE - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
 
               <g transform={`translate(${cx + wPx/2 + 12}, ${yMon})`}>
                 <circle cx={0} cy={0} r={7} fill="#3a3a48" style={{ cursor: "pointer" }}
@@ -554,10 +561,17 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
           );
         })}
 
-        {/* Desk surface - fixed at bottom, does NOT move with headDistance */}
-        <line x1={50} y1={HEAD_Y + 20} x2={CANVAS_W - 50} y2={HEAD_Y + 20} stroke="#4a4540" strokeWidth={2} />
-        {/* Desk front edge */}
-        <rect x={50} y={HEAD_Y + 20} width={CANVAS_W - 100} height={8} fill="#3a3530" rx={1} />
+        {/* Desk rectangle - perspective trapezoid representing desk from above */}
+        <g>
+          {/* Desk surface as trapezoid - centered under monitors */}
+          <polygon
+            points={`${HEAD_X - deskWidthCm * SCALE / 2},${DESK_Y + 5}
+                     ${HEAD_X + deskWidthCm * SCALE / 2},${DESK_Y + 5}
+                     ${HEAD_X + deskWidthCm * SCALE / 2 + 20},${DESK_Y + 30}
+                     ${HEAD_X - deskWidthCm * SCALE / 2 - 20},${DESK_Y + 30}`}
+            fill="#3a3530" stroke="#4a4540" strokeWidth="2"
+          />
+        </g>
       </svg>
 
       <div className="flex items-center justify-center gap-6 mt-2 text-[9px] text-text-tertiary">
