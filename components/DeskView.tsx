@@ -272,9 +272,9 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
         </div>
         <div className="flex items-center gap-3 mt-2 text-[9px]">
           <span className="text-text-tertiary">Desk:</span>
-          <span className="text-text-tertiary">W:<input type="range" min={100} max={300} value={deskWidthCm}
+          <span className="text-text-tertiary">W:<input type="range" min={100} max={300} step={5} value={deskWidthCm}
             onChange={(e) => setDeskWidthCm(parseInt(e.target.value))} className="w-16 accent-amber-600 mx-1" />{deskWidthCm}cm</span>
-          <span className="text-text-tertiary">D:<input type="range" min={40} max={120} value={deskDepthCm}
+          <span className="text-text-tertiary">D:<input type="range" min={40} max={120} step={5} value={deskDepthCm}
             onChange={(e) => setDeskDepthCm(parseInt(e.target.value))} className="w-12 accent-amber-600 mx-1" />{deskDepthCm}cm</span>
         </div>
       </div>
