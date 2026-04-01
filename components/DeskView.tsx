@@ -535,11 +535,15 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           const wCm = calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          const DESK_Y = HEAD_Y - 20 - (headDistance - REF_DISTANCE) * 1.5;
+          // DESK_Y: desk is BELOW monitors (monitors sit ON the desk)
+          // When distance increases, desk moves DOWN (further away on screen)
+          const DESK_Y = HEAD_Y + 20 + (headDistance - REF_DISTANCE) * 1.5;
           const yMon = DESK_Y - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
           const curveRadius = arr.monitor.curvatureRadius || 1500;
+          // Arc radius: ry = wPx * (1500 / R) * 0.3 - bigger R = flatter curve
+          const arcRy = wPx * (1500 / curveRadius) * 0.3;
 
           return (
             <g key={arr.id}>
@@ -548,7 +552,7 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
 
               {/* Monitor top view - FLAT = thick line, CURVED = arc */}
               {curved ? (
-                <path d={`M ${cx - wPx/2} ${yMon} A ${curveRadius * 0.05} ${curveRadius * 0.05} 0 0 1 ${cx + wPx/2} ${yMon}`}
+                <path d={`M ${cx - wPx/2} ${yMon} A ${wPx / 2} ${arcRy} 0 0 1 ${cx + wPx/2} ${yMon}`}
                   fill="none" stroke="#F59E0B" strokeWidth={6} strokeLinecap="round" style={{ cursor: "grab" }}
                   onPointerDown={(e) => { e.stopPropagation(); const rect = svgRef.current!.getBoundingClientRect(); setDraggingId(arr.id); dragStart.current = { mouseX: e.clientX - rect.left, mouseY: e.clientY - rect.top, arr }; }} />
               ) : (
