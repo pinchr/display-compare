@@ -42,6 +42,8 @@ export default function WorkspaceSimulator({ monitors, onMonitorLayoutsChange }:
   const [placedWindows, setPlacedWindows] = useState<PlacedWindow[]>([]);
   const [uiScale, setUiScale] = useState(UI_SCALE_DEFAULT);
   const [dragging, setDragging] = useState<PlacedWindow | null>(null);
+  // Track if we should report layout changes to parent
+  const isDraggingRef = useRef(false);
   const [dragStart, setDragStart] = useState({ mx: 0, my: 0, wx: 0, wy: 0 });
   const [draggingMonitor, setDraggingMonitor] = useState<string | null>(null);
   const [monitorDragStart, setMonitorDragStart] = useState({ mx: 0, my: 0, mxPos: 0, myPos: 0 });
@@ -106,12 +108,13 @@ export default function WorkspaceSimulator({ monitors, onMonitorLayoutsChange }:
     return { ...l, x: l.x + off.x, y: l.y + off.y };
   });
 
-  // Notify parent when arrangement changes (so ViewFromAbove can use it)
+  // Report initial layout to parent on mount
   useEffect(() => {
     if (onMonitorLayoutsChange) {
       onMonitorLayoutsChange(monitorLayouts);
     }
-  }, [monitorLayouts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount
 
   // ── Document-level pointer events for window dragging ──
   // Without this, pointerup doesn't fire on the canvas when releasing on a window
@@ -120,7 +123,11 @@ export default function WorkspaceSimulator({ monitors, onMonitorLayoutsChange }:
     dragOffsetsRef.current = {};
     // Force re-render to reflect cleared offsets
     setDummy((n) => n + 1);
-  }, []);
+    // Report default arrangement to parent
+    if (onMonitorLayoutsChange) {
+      onMonitorLayoutsChange(baseLayouts);
+    }
+  }, [baseLayouts]);
 
   // Convert window px at REF resolution → px at current monitor resolution
   const pxAtMonitor = (windowPx: number, monitorPx: number) =>
@@ -248,7 +255,15 @@ export default function WorkspaceSimulator({ monitors, onMonitorLayoutsChange }:
   const handlePointerUp = useCallback(() => {
     setDragging(null);
     setDraggingMonitor(null);
-  }, []);
+    // Report final arrangement to parent (so ViewFromAbove updates)
+    if (onMonitorLayoutsChange) {
+      const current = baseLayouts.map((l) => {
+        const off = dragOffsetsRef.current[l.monitor.id] || { x: 0, y: 0 };
+        return { ...l, x: l.x + off.x, y: l.y + off.y };
+      });
+      onMonitorLayoutsChange(current);
+    }
+  }, [baseLayouts]);
 
   // ── Render ──────────────────────────────────────────
   // Visual size: window px at reference (1920×1080) → scaled to this monitor's physical px → modified by uiScale

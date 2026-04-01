@@ -7,8 +7,7 @@ import Workspace from "@/components/Workspace";
 import OverlayCanvas from "@/components/OverlayCanvas";
 import LayoutGrid from "@/components/LayoutGrid";
 import SpecTable from "@/components/SpecTable";
-import WorkspaceSimulator from "@/components/workspace/WorkspaceSimulator";
-import ViewFromAbove from "@/components/ViewFromAbove";
+import DeskView from "@/components/DeskView";
 
 const MAX_MONITORS = 6;
 const MAX_SIMULATOR_MONITORS = 3;
@@ -109,31 +108,19 @@ export default function Home() {
           </section>
         )}
 
-        {/* Workspace Simulator — realistic app mockups */}
+        {/* Desk View - Workspace Simulator + Bird's Eye, synced in real-time */}
         {selectedMonitors.length >= 2 && (
           <section className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
-            <div className="rounded-2xl border border-border bg-bg-secondary p-6">
-              <WorkspaceSimulator
-                key={selectedMonitors.map((m) => m.id).join(",")}
-                monitors={selectedMonitors.slice(0, MAX_SIMULATOR_MONITORS)}
-                onMonitorLayoutsChange={handleArrangementsChange}
-              />
-            </div>
-          </section>
-        )}
-
-        {/* View from above — bird's eye desk layout, synced with Workspace Simulator */}
-        {selectedMonitors.length >= 2 && (
-          <section className="animate-fade-in-up" style={{ animationDelay: "150ms" }}>
-            <ViewFromAbove
-              monitors={selectedMonitors.slice(0, MAX_SIMULATOR_MONITORS)}
+            <DeskView
+              monitors={selectedMonitors}
               arrangements={arrangements}
+              onArrangementsChange={handleArrangementsChange}
             />
           </section>
         )}
 
         {/* Layout comparison (equal divisions) */}
-        {selectedMonitors.length >= 2 && (
+        {selectedMonitors.length >= 1 && (
           <section className="animate-fade-in-up" style={{ animationDelay: "150ms" }}>
             <div className="rounded-2xl border border-border bg-bg-secondary p-6">
               <LayoutGrid
@@ -146,7 +133,7 @@ export default function Home() {
         )}
 
         {/* Overlay canvas */}
-        {selectedMonitors.length >= 2 && (
+        {selectedMonitors.length >= 1 && (
           <section className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
             <div className="rounded-2xl border border-border bg-bg-secondary p-6">
               <OverlayCanvas monitors={selectedMonitors} />
@@ -155,7 +142,7 @@ export default function Home() {
         )}
 
         {/* Spec table */}
-        {selectedMonitors.length >= 2 && (
+        {selectedMonitors.length >= 1 && (
           <section className="animate-fade-in-up" style={{ animationDelay: "250ms" }}>
             <div className="rounded-2xl border border-border bg-bg-secondary p-6">
               <SpecTable monitors={selectedMonitors} />

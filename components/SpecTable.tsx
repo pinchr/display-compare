@@ -18,7 +18,9 @@ export default function SpecTable({ monitors }: SpecTableProps) {
   if (monitors.length < 2) {
     return (
       <div className="text-center py-8 text-text-tertiary text-sm">
-        Select at least 2 monitors to compare specifications
+        {monitors.length === 1
+          ? `Showing specs for ${monitors[0].name}`
+          : "Select at least 2 monitors to compare specifications"}
       </div>
     );
   }
