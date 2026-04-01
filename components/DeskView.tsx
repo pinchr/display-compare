@@ -119,6 +119,7 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   const [showBanana, setShowBanana] = useState(false);
   const [showIPhone, setShowIPhone] = useState(false);
   const [deskWidthCm, setDeskWidthCm] = useState(180);
+  const [deskDepthCm, setDeskDepthCm] = useState(70);
   const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D; startXCm: number; startYCm: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -301,11 +302,13 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
           </button>
         </div>
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-[9px] text-text-tertiary">Desk W:</span>
-          <input type="range" min={100} max={300} step={5} value={deskWidthCm}
+          <span className="text-[9px] text-text-tertiary">Desk:</span>
+          <span className="text-[9px] text-text-tertiary">W:<input type="range" min={100} max={300} step={5} value={deskWidthCm}
             onChange={(e) => setDeskWidthCm(parseInt(e.target.value))}
-            className="w-20 accent-amber-600" />
-          <span className="text-[9px] text-text-tertiary">{deskWidthCm}cm</span>
+            className="w-16 accent-amber-600 mx-1" />{deskWidthCm}cm</span>
+          <span className="text-[9px] text-text-tertiary">D:<input type="range" min={40} max={120} step={5} value={deskDepthCm}
+            onChange={(e) => setDeskDepthCm(parseInt(e.target.value))}
+            className="w-12 accent-amber-600 mx-1" />{deskDepthCm}cm</span>
         </div>
       </div>
 
@@ -368,11 +371,11 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
           );
         })}
 
-        {/* Desk surface - simple trapezoid receding into distance */}
+        {/* Desk surface - fixed size, does NOT scale with headDistance */}
         <div className="absolute pointer-events-none" style={{
           left: '50%',
           bottom: '0px',
-          width: `${deskWidthCm * pxPerCm}px`,
+          width: `${deskWidthCm * basePxPerCm}px`,
           height: '120px',
           transform: 'translateX(-50%)',
         }}>
@@ -550,6 +553,11 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
             </g>
           );
         })}
+
+        {/* Desk surface - fixed at bottom, does NOT move with headDistance */}
+        <line x1={50} y1={HEAD_Y + 20} x2={CANVAS_W - 50} y2={HEAD_Y + 20} stroke="#4a4540" strokeWidth={2} />
+        {/* Desk front edge */}
+        <rect x={50} y={HEAD_Y + 20} width={CANVAS_W - 100} height={8} fill="#3a3530" rx={1} />
       </svg>
 
       <div className="flex items-center justify-center gap-6 mt-2 text-[9px] text-text-tertiary">
