@@ -316,16 +316,18 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
 function TopView({ monitors, arrangements, headDistance, onArrangementsChange, onHeadDistanceChange }: { monitors: Monitor[]; arrangements: MonitorArrangement3D[]; headDistance: number; onArrangementsChange: (arr: MonitorArrangement3D[]) => void; onHeadDistanceChange: (d: number) => void }) {
   const isDraggingRef = useRef(false);
   const [localArrangements, setLocalArrangements] = useState<MonitorArrangement3D[]>(arrangements);
+  const localArrangementsRef = useRef(localArrangements);
+  useEffect(() => { localArrangementsRef.current = localArrangements; }, [localArrangements]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const dragStart = useRef<{ mouseX: number; arr: MonitorArrangement3D } | null>(null);
 
   // Sync local arrangements from parent only when not dragging
   useEffect(() => {
-    if (!draggingId) {
+    if (!isDraggingRef.current) {
       setLocalArrangements(arrangements);
     }
-  }, [arrangements, draggingId]);
+  }, [arrangements]);
 
   const CANVAS_W = 800;
   const CANVAS_H = 340;
@@ -337,6 +339,7 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingId || !dragStart.current || !svgRef.current) return;
+    isDraggingRef.current = true;
     const rect = svgRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const dx = mouseX - dragStart.current.mouseX;
@@ -346,10 +349,17 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
     const minXCm = -totalPhysCm / 2 + halfW;
     const maxXCm = totalPhysCm / 2 - halfW;
     const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.arr.xCm + dxCm));
-    onArrangementsChange(arrangements.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm } : arr));
-  }, [draggingId, arrangements, totalPhysCm, onArrangementsChange]);
+    setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm } : arr));
+  }, [draggingId, totalPhysCm]);
 
-  const handlePointerUp = useCallback(() => { setDraggingId(null); dragStart.current = null; }, []);
+  const handlePointerUp = useCallback(() => {
+    if (draggingId) {
+      onArrangementsChange(localArrangementsRef.current);
+    }
+    setDraggingId(null);
+    dragStart.current = null;
+    isDraggingRef.current = false;
+  }, [draggingId, onArrangementsChange]);
 
   const overlaps = useMemo(() => {
     const result: { cx: number; cy: number }[] = [];
