@@ -158,7 +158,7 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
     
     // Both axes work simultaneously - drag diagonally
     const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.startXCm + dx / pxPerCm));
-    const newYCm = Math.max(minYCm, Math.min(maxYCm, dragStart.current.startYCm + dy / 2));
+    const newYCm = Math.max(minYCm, Math.min(maxYCm, dragStart.current.startYCm - dy / pxPerCm));
 
     setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm, yCm: newYCm } : arr));
   }, [draggingId, pxPerCm]);

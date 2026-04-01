@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Monitor } from "@/lib/monitors/types";
+import { PRESET_MONITORS } from "@/lib/monitors/presets";
 import PresetBar from "@/components/PresetBar";
 import Workspace from "@/components/Workspace";
-import OverlayCanvas from "@/components/OverlayCanvas";
 import LayoutGrid from "@/components/LayoutGrid";
 import SpecTable from "@/components/SpecTable";
 import DeskView from "@/components/DeskView";
@@ -26,6 +26,18 @@ export default function Home() {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   // Shared arrangement state — updated by WorkspaceSimulator, read by ViewFromAbove
   const [arrangements, setArrangements] = useState<MonitorArrangement[]>([]);
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchResults = useMemo(() => {
+    if (!searchQuery) return [];
+    const q = searchQuery.toLowerCase();
+    return PRESET_MONITORS.filter(m =>
+      m.name.toLowerCase().includes(q) ||
+      m.brand.toLowerCase().includes(q) ||
+      m.id.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
   const handleToggleMonitor = (monitor: Monitor) => {
     setSelectedMonitors((prev) => {
@@ -87,6 +99,41 @@ export default function Home() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-10">
+        {/* Monitor Search */}
+        <section>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search monitors (e.g. '27 QHD' or 'Samsung 32')..."
+              className="w-full px-4 py-2 rounded-lg bg-bg-tertiary border border-border text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent/50"
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSearchOpen(e.target.value.length > 0);
+              }}
+              onFocus={() => setSearchOpen(searchQuery.length > 0)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 200)}
+            />
+            {searchOpen && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border rounded-lg shadow-xl max-h-64 overflow-y-auto z-50">
+                {searchResults.slice(0, 10).map((m) => (
+                  <button
+                    key={m.id}
+                    className="w-full px-4 py-2 text-left hover:bg-bg-tertiary flex items-center justify-between"
+                    onMouseDown={() => {
+                      handleToggleMonitor(m);
+                      setSearchQuery("");
+                      setSearchOpen(false);
+                    }}
+                  >
+                    <span className="text-text-primary text-sm">{m.name}</span>
+                    <span className="text-text-tertiary text-xs">{m.brand}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Preset bar */}
         <section>
           <PresetBar
@@ -128,15 +175,6 @@ export default function Home() {
                 selectedLayout={layoutWindows}
                 onLayoutChange={setLayoutWindows}
               />
-            </div>
-          </section>
-        )}
-
-        {/* Overlay canvas */}
-        {selectedMonitors.length >= 1 && (
-          <section className="animate-fade-in-up" style={{ animationDelay: "200ms" }}>
-            <div className="rounded-2xl border border-border bg-bg-secondary p-6">
-              <OverlayCanvas monitors={selectedMonitors} />
             </div>
           </section>
         )}
