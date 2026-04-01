@@ -129,9 +129,13 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   const FOV_ANGLE = 30;
   const CANVAS_H = 700;
   const EYE_Y = CANVAS_H / 2;
+  const REF_DISTANCE = 70; // reference head distance for scale
 
   const totalPhysCm = useMemo(() => monitors.reduce((sum, m) => sum + calcWidthCm(m.diagonal, m.widthPx, m.heightPx), 0) + (monitors.length - 1) * 3, [monitors]);
-  const pxPerCm = 1200 / totalPhysCm;
+  const basePxPerCm = 1200 / totalPhysCm;
+  // Perspective: farther head = smaller monitors
+  const perspectiveScale = REF_DISTANCE / headDistance;
+  const pxPerCm = basePxPerCm * perspectiveScale;
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!draggingId || !dragStart.current || !containerRef.current) return;
