@@ -33,6 +33,31 @@ interface MonitorArrangement3D {
   rotation: number;
 }
 
+// Rotation handle component - extracted to fix TypeScript scoping
+function RotationHandle({ cx, yMon, rotation, isRotating, onRotateStart }: {
+  cx: number; yMon: number; rotation: number; isRotating: boolean;
+  onRotateStart: (mouseX: number) => void;
+}) {
+  const perpDist = 50;
+  const rotRad = (rotation * Math.PI) / 180;
+  const handleX = cx + Math.sin(rotRad) * perpDist;
+  const handleY = yMon - Math.cos(rotRad) * perpDist;
+  const handleR = 12;
+
+  return (
+    <g>
+      <line x1={cx} y1={yMon} x2={handleX} y2={handleY}
+        stroke={isRotating ? "#fbbf24" : "#f97316"} strokeWidth={3} strokeDasharray="6 3" />
+      <circle cx={handleX} cy={handleY} r={handleR}
+        fill={isRotating ? "#fbbf24" : "#ea580c"} stroke="#ffffff" strokeWidth={2}
+        style={{ cursor: "grab" }}
+        onPointerDown={(e) => { e.stopPropagation(); onRotateStart(e.clientX); }} />
+      <text x={handleX} y={handleY} fill="#ffffff" fontSize={12} textAnchor="middle"
+        dominantBaseline="middle" fontWeight="bold" style={{ pointerEvents: "none" }}>↻</text>
+    </g>
+  );
+}
+
 interface DeskViewProps {
   monitors: Monitor[];
   arrangements: MonitorLayout[];
@@ -116,11 +141,13 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   }, [arrangements]);
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [rotatingId, setRotatingId] = useState<string | null>(null);
   const [showBanana, setShowBanana] = useState(false);
   const [showIPhone, setShowIPhone] = useState(false);
-  const [deskWidthCm, setDeskWidthCm] = useState(180); // desk width in cm
-  const [deskDepthCm, setDeskDepthCm] = useState(70); // desk depth in cm
+  const [deskWidthCm, setDeskWidthCm] = useState(180);
+  const [deskDepthCm, setDeskDepthCm] = useState(70);
   const dragStart = useRef<{ mouseX: number; mouseY: number; arr: MonitorArrangement3D; startXCm: number; startYCm: number } | null>(null);
+  const rotateStart = useRef<{ mouseX: number; arr: MonitorArrangement3D; handleX: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync local arrangements from parent only when not dragging
@@ -142,7 +169,27 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
   const pxPerCm = basePxPerCm * perspectiveScale;
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!draggingId || !dragStart.current || !containerRef.current) return;
+    if (!containerRef.current) return;
+
+    // Handle rotation dragging
+    if (rotatingId && rotateStart.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const dx = mouseX - rotateStart.current.mouseX;
+
+      // Calculate new rotation based on horizontal drag
+      // Each pixel of drag = some degrees
+      const degPerPx = 0.5;
+      const newRotation = rotateStart.current.arr.rotation + dx * degPerPx;
+
+      setLocalArrangements(prev => prev.map(arr =>
+        arr.id === rotatingId ? { ...arr, rotation: newRotation } : arr
+      ));
+      return;
+    }
+
+    // Handle position dragging
+    if (!draggingId || !dragStart.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
@@ -153,25 +200,30 @@ function FrontView({ monitors, arrangements, headDistance, onArrangementsChange,
     const wPx = wCm * pxPerCm;
     const minXCm = -600 + wPx / 2 / pxPerCm;
     const maxXCm = 600 - wPx / 2 / pxPerCm;
-    
+
     // Y-axis: -60 to +60 cm range (move monitor up or down)
     const minYCm = -60;
     const maxYCm = 60;
-    
+
     // Both axes work simultaneously - drag diagonally
     const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.startXCm + dx / pxPerCm));
     const newYCm = Math.max(minYCm, Math.min(maxYCm, dragStart.current.startYCm + dy / 2));
 
     setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm, yCm: newYCm } : arr));
-  }, [draggingId, pxPerCm]);
+  }, [draggingId, rotatingId, pxPerCm]);
 
   const handlePointerUp = useCallback(() => {
     if (draggingId) {
       onArrangementsChange(localArrangementsRef.current);
     }
+    if (rotatingId) {
+      onArrangementsChange(localArrangementsRef.current);
+    }
     setDraggingId(null);
+    setRotatingId(null);
     dragStart.current = null;
-  }, [draggingId, onArrangementsChange]);
+    rotateStart.current = null;
+  }, [draggingId, rotatingId, onArrangementsChange]);
 
   const resetLayout = () => {
     let offset = -totalPhysCm / 2;
@@ -395,7 +447,9 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
   useEffect(() => { localArrangementsRef.current = localArrangements; }, [localArrangements]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [rotatingId, setRotatingId] = useState<string | null>(null);
   const dragStart = useRef<{ mouseX: number; arr: MonitorArrangement3D } | null>(null);
+  const rotateStart = useRef<{ mouseX: number; arr: MonitorArrangement3D; handleX: number } | null>(null);
 
   // Sync local arrangements from parent only when not dragging
   useEffect(() => {
@@ -413,6 +467,20 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
   const totalPhysCm = useMemo(() => monitors.reduce((sum, m) => sum + calcWidthCm(m.diagonal, m.widthPx, m.heightPx), 0) + (monitors.length - 1) * 3, [monitors]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Handle rotation dragging
+    if (rotatingId && rotateStart.current && svgRef.current) {
+      const rect = svgRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const dx = mouseX - rotateStart.current.mouseX;
+      const degPerPx = 0.5;
+      const newRotation = rotateStart.current.arr.rotation + dx * degPerPx;
+      setLocalArrangements(prev => prev.map(arr =>
+        arr.id === rotatingId ? { ...arr, rotation: newRotation } : arr
+      ));
+      return;
+    }
+
+    // Handle position dragging
     if (!draggingId || !dragStart.current || !svgRef.current) return;
     isDraggingRef.current = true;
     const rect = svgRef.current.getBoundingClientRect();
@@ -425,16 +493,21 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
     const maxXCm = totalPhysCm / 2 - halfW;
     const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.arr.xCm + dxCm));
     setLocalArrangements(prev => prev.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm } : arr));
-  }, [draggingId, totalPhysCm]);
+  }, [draggingId, rotatingId, totalPhysCm]);
 
   const handlePointerUp = useCallback(() => {
     if (draggingId) {
       onArrangementsChange(localArrangementsRef.current);
     }
+    if (rotatingId) {
+      onArrangementsChange(localArrangementsRef.current);
+    }
     setDraggingId(null);
+    setRotatingId(null);
     dragStart.current = null;
+    rotateStart.current = null;
     isDraggingRef.current = false;
-  }, [draggingId, onArrangementsChange]);
+  }, [draggingId, rotatingId, onArrangementsChange]);
 
   const overlaps = useMemo(() => {
     const result: { cx: number; cy: number }[] = [];
@@ -512,11 +585,14 @@ function TopView({ monitors, arrangements, headDistance, onArrangementsChange, o
 
               <text x={cx} y={yMon - 8} fill="#6a6a7a" fontSize={7} textAnchor="middle" fontFamily="monospace">{arr.monitor.diagonal}"</text>
 
-              <g transform={`translate(${cx + wPx/2 + 12}, ${yMon})`}>
-                <circle cx={0} cy={0} r={7} fill="#3a3a48" style={{ cursor: "pointer" }}
-                  onClick={(e) => { e.stopPropagation(); const newRot = arr.rotation === 0 ? 15 : arr.rotation === 15 ? -15 : 0; setLocalArrangements(prev => prev.map(a => a.id === arr.id ? { ...a, rotation: newRot } : a)); onArrangementsChange(localArrangements.map(a => a.id === arr.id ? { ...a, rotation: newRot } : a)); }} />
-                <text x={0} y={3} fill="#6a6a7a" fontSize={6} textAnchor="middle" fontFamily="monospace">{arr.rotation !== 0 ? `${arr.rotation > 0 ? "+" : ""}${arr.rotation}` : "↻"}</text>
-              </g>
+              {/* Rotation handle: line perpendicular to monitor + draggable handle */}
+              <RotationHandle cx={cx} yMon={yMon} rotation={arr.rotation} isRotating={rotatingId === arr.id} onRotateStart={(mouseX: number) => {
+                const perpDist = 50;
+                const rotRad = (arr.rotation * Math.PI) / 180;
+                const handleX = cx + Math.sin(rotRad) * perpDist;
+                setRotatingId(arr.id);
+                rotateStart.current = { mouseX, arr, handleX };
+              }} />
             </g>
           );
         })}
