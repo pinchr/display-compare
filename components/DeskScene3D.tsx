@@ -1,12 +1,11 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
-import { Canvas, useThree, useFrame, ThreeEvent } from "@react-three/fiber";
-import { PerspectiveCamera, OrthographicCamera, Raycaster, Vector2, Plane, Vector3 } from "three";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { PerspectiveCamera, OrthographicCamera } from "three";
+import { ThreeEvent } from "@react-three/fiber";
 import { Monitor } from "@/lib/monitors/types";
 import { calcWidthCm, calcHeightCm } from "@/lib/monitors/calculations";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface MonitorLayout3D {
   id: string;
@@ -15,6 +14,7 @@ export interface MonitorLayout3D {
   yCm: number;
   zCm: number;
   rotation: number;
+  yawDeg?: number;
 }
 
 export interface SceneState {
@@ -25,14 +25,25 @@ export interface SceneState {
   monitors: MonitorLayout3D[];
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const WALL_GAP_CM = 10
+const BODY_OFFSET_CM = 15
+const MONITOR_BACK_OFFSET = 15
+const MONITOR_STAND_H = 3
+const PERSON_EYE_H = 125
+const ROOM_DEPTH_CM = 400
 
-const ROOM_DEPTH_CM = 280;
-const HEAD_Z_CM = 8;
-const MONITOR_STAND_H = 3;
-const PERSON_EYE_H = 125;
-
-// ─── Drag State ──────────────────────────────────────────────────────────────
+function derivePositions(scene: SceneState) {
+  const deskBackZ  = WALL_GAP_CM
+  const deskFrontZ = WALL_GAP_CM + scene.deskDepthCm
+  const minObsZ    = deskFrontZ + BODY_OFFSET_CM
+  const naturalMonitorZ = deskBackZ + MONITOR_BACK_OFFSET
+  const naturalObsZ     = naturalMonitorZ + scene.headDistance
+  const observerZ = Math.max(minObsZ, naturalObsZ)
+  const rawMonitorZ     = observerZ - scene.headDistance
+  const baseMonitorZ    = Math.max(deskBackZ + 5, Math.min(deskFrontZ - 5, rawMonitorZ))
+  const actualDistance  = Math.round(observerZ - baseMonitorZ)
+  return { deskBackZ, deskFrontZ, observerZ, baseMonitorZ, actualDistance }
+}
 
 interface DragState {
   monitorId: string;
@@ -42,24 +53,16 @@ interface DragState {
   startZCm: number;
 }
 
-// ─── 3D Primitives ────────────────────────────────────────────────────────────
-
-function Desk({ width, depth, height }: { width: number; depth: number; height: number }) {
+function Desk({ width, depth, height, backZ }: { width: number; depth: number; height: number; backZ: number }) {
+  const centerZ = backZ + depth / 2
   return (
     <group>
-      <mesh position={[0, height, depth / 2]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, height, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[width, depth]} />
         <meshStandardMaterial color="#7a5c20" roughness={0.85} />
       </mesh>
-      {(
-        [
-          [-width / 2 + 3, depth / 2 - 3],
-          [width / 2 - 3, depth / 2 - 3],
-          [-width / 2 + 3, 3],
-          [width / 2 - 3, 3],
-        ] as [number, number][]
-      ).map(([x, z], i) => (
-        <mesh key={i} position={[x, height / 2, z]}>
+      {([[-width/2+3, backZ+3],[width/2-3, backZ+3],[-width/2+3, backZ+depth-3],[width/2-3, backZ+depth-3]] as [number,number][]).map(([x,z],i) => (
+        <mesh key={i} position={[x, height/2, z]}>
           <boxGeometry args={[2.5, height, 2.5]} />
           <meshStandardMaterial color="#4a3820" roughness={0.95} />
         </mesh>
@@ -68,272 +71,169 @@ function Desk({ width, depth, height }: { width: number; depth: number; height: 
   );
 }
 
-function MonitorModel({
-  layout,
-  deskTopY,
-  isDragging,
-  onPointerDown,
-}: {
-  layout: MonitorLayout3D;
-  deskTopY: number;
-  isDragging: boolean;
-  onPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
+function MonitorModel({ layout, deskTopY, baseMonitorZ, isDragging, onPointerDown }: {
+  layout: MonitorLayout3D; deskTopY: number; baseMonitorZ: number;
+  isDragging: boolean; onPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
 }) {
   const m = layout.monitor;
   const isPortrait = layout.rotation === 90;
-  const wCm = isPortrait
-    ? calcHeightCm(m.diagonal, m.widthPx, m.heightPx)
-    : calcWidthCm(m.diagonal, m.widthPx, m.heightPx);
-  const hCm = isPortrait
-    ? calcWidthCm(m.diagonal, m.widthPx, m.heightPx)
-    : calcHeightCm(m.diagonal, m.widthPx, m.heightPx);
+  const wCm = isPortrait ? calcHeightCm(m.diagonal, m.widthPx, m.heightPx) : calcWidthCm(m.diagonal, m.widthPx, m.heightPx);
+  const hCm = isPortrait ? calcWidthCm(m.diagonal, m.widthPx, m.heightPx) : calcHeightCm(m.diagonal, m.widthPx, m.heightPx);
   const dCm = MONITOR_STAND_H;
-
   return (
     <group
-      position={[layout.xCm, deskTopY + hCm / 2, layout.zCm + dCm / 2]}
-      rotation={[0, isPortrait ? Math.PI / 2 : 0, 0]}
+      position={[layout.xCm, deskTopY + (layout.yCm ?? 0) + hCm/2, baseMonitorZ + (layout.zCm ?? 0) + dCm/2]}
+      rotation={[0, ((layout.yawDeg ?? 0) * Math.PI) / 180, 0]}
       onPointerDown={(e) => { e.stopPropagation(); onPointerDown(layout.id, e); }}
     >
-      <mesh>
-        <boxGeometry args={[wCm, hCm, dCm]} />
-        <meshStandardMaterial
-          color={isDragging ? "#3a3a50" : "#1e1e24"}
-          roughness={0.4}
-          metalness={0.6}
-        />
-      </mesh>
-      <mesh position={[0, 0, dCm / 2 + 0.05]}>
-        <planeGeometry args={[wCm - 0.8, hCm - 0.8]} />
-        <meshStandardMaterial color="#080810" roughness={0.05} metalness={0.95} />
-      </mesh>
-      <mesh position={[0, -hCm / 2 - 1.5, 0]}>
-        <boxGeometry args={[wCm * 0.25, 3, dCm * 1.2]} />
-        <meshStandardMaterial color="#2a2a32" roughness={0.7} />
-      </mesh>
+      <group rotation={[0, isPortrait ? Math.PI/2 : 0, 0]}>
+        <mesh>
+          <boxGeometry args={[wCm, hCm, dCm]} />
+          <meshStandardMaterial color={isDragging ? "#3a3a50" : "#1e1e24"} roughness={0.4} metalness={0.6} />
+        </mesh>
+        <mesh position={[0, 0, dCm/2+0.05]}>
+          <planeGeometry args={[wCm-0.8, hCm-0.8]} />
+          <meshStandardMaterial color="#080810" emissive="#1a2a55" emissiveIntensity={0.4} roughness={0.05} metalness={0.95} />
+        </mesh>
+        <mesh position={[0, -hCm/2-1.5, 0]}>
+          <boxGeometry args={[wCm*0.25, 3, dCm*1.2]} />
+          <meshStandardMaterial color="#2a2a32" roughness={0.7} />
+        </mesh>
+      </group>
     </group>
   );
 }
 
-function Person({ eyeZ }: { eyeZ: number }) {
+function Person({ observerZ }: { observerZ: number }) {
   return (
-    <group position={[0, 0, eyeZ]}>
+    <group position={[0, 0, observerZ]}>
       <mesh position={[0, PERSON_EYE_H, 0]}>
         <sphereGeometry args={[7, 16, 16]} />
         <meshStandardMaterial color="#ddb898" roughness={0.9} />
       </mesh>
-      <mesh position={[-3, PERSON_EYE_H + 1, 6]}>
-        <sphereGeometry args={[1.2, 8, 8]} />
-        <meshStandardMaterial color="white" />
-      </mesh>
-      <mesh position={[3, PERSON_EYE_H + 1, 6]}>
-        <sphereGeometry args={[1.2, 8, 8]} />
-        <meshStandardMaterial color="white" />
-      </mesh>
-      <mesh position={[0, PERSON_EYE_H - 20, -4]}>
-        <cylinderGeometry args={[10, 7, 28, 12]} />
+      <mesh position={[-3, PERSON_EYE_H+1, 6]}><sphereGeometry args={[1.2, 8, 8]} /><meshStandardMaterial color="#222" /></mesh>
+      <mesh position={[3, PERSON_EYE_H+1, 6]}><sphereGeometry args={[1.2, 8, 8]} /><meshStandardMaterial color="#222" /></mesh>
+      <mesh position={[0, PERSON_EYE_H-30, 0]}>
+        <cylinderGeometry args={[10, 8, 40, 12]} />
         <meshStandardMaterial color="#3366aa" roughness={0.95} />
       </mesh>
     </group>
   );
 }
 
-// ─── Scene Objects ─────────────────────────────────────────────────────────────
-
-function SceneObjects({
-  scene,
-  draggingId,
-  showPerson,
-  onMonitorPointerDown,
-}: {
-  scene: SceneState;
-  draggingId: string | null;
-  showPerson: boolean;
+function SceneObjects({ scene, draggingId, showPerson, positions, onMonitorPointerDown }: {
+  scene: SceneState; draggingId: string | null; showPerson: boolean;
+  positions: ReturnType<typeof derivePositions>;
   onMonitorPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
 }) {
-  const deskTopY = scene.deskHeightCm;
-  const eyeZ = scene.headDistance + scene.deskDepthCm / 2;
-
+  const { deskBackZ, observerZ, baseMonitorZ } = positions;
   return (
     <>
-      <ambientLight intensity={1.2} color="#ffffff" />
-      <directionalLight position={[50, 300, scene.headDistance + scene.deskDepthCm / 2]} intensity={1.2} castShadow />
-      <pointLight position={[0, 150, scene.headDistance + scene.deskDepthCm / 2]} intensity={0.8} color="#ffeecc" />
-
-      {/* Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, ROOM_DEPTH_CM / 2]}>
-        <planeGeometry args={[500, ROOM_DEPTH_CM]} />
+      <ambientLight intensity={1.2} />
+      <directionalLight position={[60, 300, observerZ]} intensity={1.2} castShadow />
+      <pointLight position={[0, 180, (deskBackZ+observerZ)/2]} intensity={0.8} color="#ffeecc" />
+      <mesh position={[0, 120, 0]}><planeGeometry args={[600, 240]} /><meshStandardMaterial color="#23222a" /></mesh>
+      <mesh rotation={[-Math.PI/2, 0, 0]} position={[0, 0, ROOM_DEPTH_CM/2]}>
+        <planeGeometry args={[600, ROOM_DEPTH_CM]} />
         <meshStandardMaterial color="#3a3a44" roughness={1} />
       </mesh>
-
-      {/* Back wall */}
-      <mesh position={[0, 120, ROOM_DEPTH_CM]}>
-        <planeGeometry args={[500, 240]} />
-        <meshStandardMaterial color="#28282e" />
-      </mesh>
-
-      {/* Desk */}
-      <Desk width={scene.deskWidthCm} depth={scene.deskDepthCm} height={scene.deskHeightCm} />
-
-      {/* Monitors */}
+      <Desk width={scene.deskWidthCm} depth={scene.deskDepthCm} height={scene.deskHeightCm} backZ={deskBackZ} />
       {scene.monitors.map((m) => (
-        <MonitorModel
-          key={m.id}
-          layout={m}
-          deskTopY={deskTopY}
-          isDragging={draggingId === m.id}
-          onPointerDown={onMonitorPointerDown}
-        />
+        <MonitorModel key={m.id} layout={m} deskTopY={scene.deskHeightCm} baseMonitorZ={baseMonitorZ} isDragging={draggingId === m.id} onPointerDown={onMonitorPointerDown} />
       ))}
-
-      {/* Person — only visible in top view */}
-      {showPerson && <Person eyeZ={eyeZ} />}
+      {showPerson && <Person observerZ={observerZ} />}
     </>
   );
 }
 
-// ─── Camera Controllers ───────────────────────────────────────────────────────
-
-function FrontCameraSetup({ scene }: { scene: SceneState }) {
+function FrontCameraSetup({ positions }: { positions: ReturnType<typeof derivePositions> }) {
   const { camera } = useThree() as { camera: PerspectiveCamera };
+  const { observerZ, baseMonitorZ } = positions;
   useEffect(() => {
-    // Camera at observer's position — see scene from person's POV
-    camera.position.set(0, scene.deskHeightCm + 50, scene.headDistance + scene.deskDepthCm / 2);
-    camera.lookAt(0, scene.deskHeightCm + 50, scene.deskDepthCm / 2);
+    camera.position.set(0, PERSON_EYE_H, observerZ);
+    camera.lookAt(0, PERSON_EYE_H, baseMonitorZ);
+    camera.fov = 55; camera.near = 1; camera.far = 1000;
     camera.updateProjectionMatrix();
-  }, [camera, scene.headDistance, scene.deskHeightCm, scene.deskDepthCm]);
+  }, [camera, observerZ, baseMonitorZ]);
   return null;
 }
 
-function TopCameraSetup() {
+function TopCameraSetup({ scene, positions }: { scene: SceneState; positions: ReturnType<typeof derivePositions> }) {
   const { camera } = useThree() as { camera: OrthographicCamera };
+  const { deskBackZ, observerZ } = positions;
   useEffect(() => {
     const cam = camera as OrthographicCamera;
-    cam.position.set(0, 250, 120);
-    cam.left = -150;
-    cam.right = 150;
-    cam.top = 150;
-    cam.bottom = -150;
-    cam.lookAt(0, 0, 130);
+    const sceneDepth = observerZ - deskBackZ + 20;
+    const cameraZ = deskBackZ + sceneDepth / 2;
+    const halfW = Math.max(scene.deskWidthCm / 2 + 40, 160);
+    const halfH = sceneDepth / 2 + 20;
+    cam.position.set(0, 300, cameraZ);
+    cam.up.set(0, 0, -1);
+    cam.lookAt(0, scene.deskHeightCm, cameraZ);
+    cam.left = -halfW; cam.right = halfW;
+    cam.top = halfH; cam.bottom = -halfH;
+    cam.near = 1; cam.far = 1000;
     cam.updateProjectionMatrix();
-  }, [camera]);
+  }, [camera, scene.deskWidthCm, scene.deskHeightCm, deskBackZ, observerZ]);
   return null;
 }
 
-// ─── Drag Controller (inside Canvas) ─────────────────────────────────────────
-
-function DragController({
-  dragging,
-  scene,
-  onUpdate,
-}: {
-  dragging: DragState | null;
-  scene: SceneState;
+function DragController({ dragging, scene, onUpdate }: {
+  dragging: DragState | null; scene: SceneState;
   onUpdate: (id: string, xCm: number, zCm: number) => void;
 }) {
-  const { camera, size } = useThree() as { camera: PerspectiveCamera | OrthographicCamera; size: { width: number; height: number } };
-  const raycaster = useRef(new Raycaster());
-  const mouse = useRef(new Vector2());
-  const dragPlane = useRef(new Plane(new Vector3(0, 1, 0), 0));
-  const intersection = useRef(new Vector3());
-
-  useFrame(({ pointer }) => {
+  useEffect(() => {
     if (!dragging) return;
-
-    // Convert pointer to normalized device coordinates
-    mouse.current.x = (pointer.x) * (size.width / 2);
-    mouse.current.y = -(pointer.y) * (size.height / 2);
-
-    // For orthographic (top view), compute delta directly from pointer movement
-    const monitor = scene.monitors.find(m => m.id === dragging.monitorId);
-    if (!monitor) return;
-
-    // Use a simple screen-space delta approach
-    const dx = pointer.x * 100; // rough cm per screen unit
-    const dz = -pointer.y * 100;
-
-    const newXCm = dragging.startXCm + dx;
-    const newZCm = Math.max(0, Math.min(scene.deskDepthCm - 10, dragging.startZCm + dz));
-
-    if (Math.abs(newXCm - monitor.xCm) > 0.5 || Math.abs(newZCm - monitor.zCm) > 0.5) {
+    const CM_PER_PX = 0.3;
+    const handleMove = (e: PointerEvent) => {
+      const dx = (e.clientX - dragging.startMouseX) * CM_PER_PX;
+      const dz = -(e.clientY - dragging.startMouseY) * CM_PER_PX;
+      const newXCm = Math.max(-scene.deskWidthCm/2+10, Math.min(scene.deskWidthCm/2-10, dragging.startXCm + dx));
+      const maxZ = scene.deskDepthCm/2 - 5;
+      const newZCm = Math.max(-maxZ, Math.min(maxZ, dragging.startZCm + dz));
       onUpdate(dragging.monitorId, newXCm, newZCm);
-    }
-  });
-
+    };
+    window.addEventListener("pointermove", handleMove);
+    return () => window.removeEventListener("pointermove", handleMove);
+  }, [dragging, scene.deskWidthCm, scene.deskDepthCm, onUpdate]);
   return null;
 }
 
-// ─── Canvas Wrappers ──────────────────────────────────────────────────────────
-
-function FrontCanvas({
-  scene,
-  dragging,
-  onMonitorPointerDown,
-  onDragUpdate,
-}: {
-  scene: SceneState;
-  dragging: DragState | null;
+function FrontCanvas({ scene, positions, dragging, onMonitorPointerDown, onDragUpdate }: {
+  scene: SceneState; positions: ReturnType<typeof derivePositions>; dragging: DragState | null;
   onMonitorPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
   onDragUpdate: (id: string, xCm: number, zCm: number) => void;
 }) {
   return (
     <div style={{ width: "100%", height: "100%", borderRadius: 8, overflow: "hidden" }}>
-      <Canvas
-        style={{ width: "100%", height: "100%" }}
-        camera={{ position: [0, 125, 200], fov: 50, near: 1, far: 500 }}
-        onCreated={({ gl, scene: threeScene, camera }) => {
-          gl.setClearColor(0x202028, 1);
-          const cam = camera as PerspectiveCamera;
-          cam.lookAt(0, scene.deskHeightCm + 50, scene.deskDepthCm / 2);
-          cam.updateProjectionMatrix();
-          gl.render(threeScene, camera);
-        }}
-      >
-        <FrontCameraSetup scene={scene} />
-        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={false} onMonitorPointerDown={onMonitorPointerDown} />
+      <Canvas style={{ width: "100%", height: "100%" }}
+        camera={{ position: [0, PERSON_EYE_H, positions.observerZ], fov: 55, near: 1, far: 1000 }}
+        onCreated={({ gl }) => gl.setClearColor(0x202028, 1)}>
+        <FrontCameraSetup positions={positions} />
+        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={false} positions={positions} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
       </Canvas>
     </div>
   );
 }
 
-function TopCanvas({
-  scene,
-  dragging,
-  onMonitorPointerDown,
-  onDragUpdate,
-}: {
-  scene: SceneState;
-  dragging: DragState | null;
+function TopCanvas({ scene, positions, dragging, onMonitorPointerDown, onDragUpdate }: {
+  scene: SceneState; positions: ReturnType<typeof derivePositions>; dragging: DragState | null;
   onMonitorPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
   onDragUpdate: (id: string, xCm: number, zCm: number) => void;
 }) {
   return (
     <div style={{ width: "100%", height: "100%", borderRadius: 8, overflow: "hidden" }}>
-      <Canvas
-        style={{ width: "100%", height: "100%" }}
-        onCreated={({ gl, scene: threeScene, camera }) => {
-          gl.setClearColor(0x202028, 1);
-          const cam = camera as OrthographicCamera;
-          cam.position.set(0, 250, 120);
-          cam.left = -150;
-          cam.right = 150;
-          cam.top = 150;
-          cam.bottom = -150;
-          cam.lookAt(0, scene.deskHeightCm, scene.deskDepthCm / 2);
-          cam.updateProjectionMatrix();
-          gl.render(threeScene, camera);
-        }}
-      >
-        <TopCameraSetup />
-        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={true} onMonitorPointerDown={onMonitorPointerDown} />
+      <Canvas style={{ width: "100%", height: "100%" }} orthographic
+        camera={{ position: [0, 300, 100], near: 1, far: 1000 }}
+        onCreated={({ gl }) => gl.setClearColor(0x202028, 1)}>
+        <TopCameraSetup scene={scene} positions={positions} />
+        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={true} positions={positions} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
       </Canvas>
     </div>
   );
 }
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export interface DeskScene3DProps {
   scene: SceneState;
@@ -342,27 +242,18 @@ export interface DeskScene3DProps {
 
 export default function DeskScene3D({ scene, onSceneChange }: DeskScene3DProps) {
   const [dragging, setDragging] = useState<DragState | null>(null);
+  const positions = useMemo(() => derivePositions(scene), [scene.headDistance, scene.deskDepthCm, scene.deskHeightCm]);
 
   const handleMonitorPointerDown = useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
     const monitor = scene.monitors.find(m => m.id === id);
     if (!monitor) return;
-    setDragging({
-      monitorId: id,
-      startMouseX: e.nativeEvent?.clientX ?? 0,
-      startMouseY: e.nativeEvent?.clientY ?? 0,
-      startXCm: monitor.xCm,
-      startZCm: monitor.zCm,
-    });
+    setDragging({ monitorId: id, startMouseX: e.nativeEvent?.clientX ?? 0, startMouseY: e.nativeEvent?.clientY ?? 0, startXCm: monitor.xCm, startZCm: monitor.zCm });
   }, [scene.monitors]);
 
   const handleDragUpdate = useCallback((id: string, xCm: number, zCm: number) => {
-    const updated = scene.monitors.map(m =>
-      m.id === id ? { ...m, xCm, zCm } : m
-    );
-    onSceneChange({ ...scene, monitors: updated });
+    onSceneChange({ ...scene, monitors: scene.monitors.map(m => m.id === id ? { ...m, xCm, zCm } : m) });
   }, [scene, onSceneChange]);
 
-  // Global pointer up to end drag
   useEffect(() => {
     if (!dragging) return;
     const handleUp = () => setDragging(null);
@@ -373,25 +264,19 @@ export default function DeskScene3D({ scene, onSceneChange }: DeskScene3DProps) 
   return (
     <div style={{ display: "flex", gap: 8 }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">Front 3D</div>
+        <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">
+          Front 3D — {positions.actualDistance}cm do monitorów
+        </div>
         <div style={{ height: 380, background: "#1a1a22", borderRadius: 12 }} className="rounded-xl border border-border overflow-hidden">
-          <FrontCanvas
-            scene={scene}
-            dragging={dragging}
-            onMonitorPointerDown={handleMonitorPointerDown}
-            onDragUpdate={handleDragUpdate}
-          />
+          <FrontCanvas scene={scene} positions={positions} dragging={dragging} onMonitorPointerDown={handleMonitorPointerDown} onDragUpdate={handleDragUpdate} />
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">Top 3D</div>
+        <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">
+          Top 3D — biurko przy ścianie północnej
+        </div>
         <div style={{ height: 380, background: "#1a1a22", borderRadius: 12 }} className="rounded-xl border border-border overflow-hidden">
-          <TopCanvas
-            scene={scene}
-            dragging={dragging}
-            onMonitorPointerDown={handleMonitorPointerDown}
-            onDragUpdate={handleDragUpdate}
-          />
+          <TopCanvas scene={scene} positions={positions} dragging={dragging} onMonitorPointerDown={handleMonitorPointerDown} onDragUpdate={handleDragUpdate} />
         </div>
       </div>
     </div>
