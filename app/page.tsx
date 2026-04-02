@@ -21,7 +21,11 @@ export interface MonitorArrangement {
 }
 
 export default function Home() {
-  const [selectedMonitors, setSelectedMonitors] = useState<Monitor[]>([]);
+  // Default: 27" flat + 34" curved
+  const [selectedMonitors, setSelectedMonitors] = useState<Monitor[]>([
+    PRESET_MONITORS.find(m => m.id === "dell-u2723qe")!,
+    PRESET_MONITORS.find(m => m.id === "samsung-g93tg")!,
+  ]);
   const [layoutWindows, setLayoutWindows] = useState<2 | 3 | 4 | 6>(2);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   // Shared arrangement state — updated by WorkspaceSimulator, read by ViewFromAbove

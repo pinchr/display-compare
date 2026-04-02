@@ -21,7 +21,7 @@ const CANVAS_W = 800;
 const CANVAS_H = 480;
 const HEAD_Y = CANVAS_H - 50; // eyes position (y)
 const HEAD_X = CANVAS_W / 2;  // center
-const DESK_Y = HEAD_Y + 20;   // desk edge (in front of user)
+const DESK_Y = HEAD_Y + 50;   // desk edge (in front of user)
 const EYES_DISTANCE_CM = 70;  // eyes to desk surface (cm) — default for flat monitors
 
 // Optimal viewing distance based on curvature R value (in mm)

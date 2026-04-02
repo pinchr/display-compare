@@ -536,7 +536,7 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
           const hCm = calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
           // DESK_Y: desk starts below head, moves UP as distance increases (toward horizon)
-          const DESK_Y = HEAD_Y + 50 - (headDistance - REF_DISTANCE) * 1.5;
+          const DESK_Y = HEAD_Y + 50 - (headDistance - REF_DISTANCE) * 1.1;
           const yMon = DESK_Y - arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const curved = arr.monitor.curved;
