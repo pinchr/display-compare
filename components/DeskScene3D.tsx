@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { PerspectiveCamera, OrthographicCamera, Object3D } from "three";
+import { PerspectiveCamera, OrthographicCamera } from "three";
 import { Monitor } from "@/lib/monitors/types";
 import { calcWidthCm, calcHeightCm } from "@/lib/monitors/calculations";
 
@@ -30,12 +30,9 @@ export interface SceneState {
 const ROOM_DEPTH_CM = 280;
 const HEAD_Z_CM = 8;
 const MONITOR_STAND_H = 3;
+const PERSON_EYE_H = 125; // cm, seated eye level
 
-// Shared scene ref — updated before each canvas renders
-let _scene: SceneState | null = null;
-function setSceneRef(s: SceneState) { _scene = s; }
-
-// ─── 3D Primitives ────────────────────────────────────────────────────────────
+// ─── 3D Scene ─────────────────────────────────────────────────────────────────
 
 function Desk({ width, depth, height }: { width: number; depth: number; height: number }) {
   return (
@@ -96,22 +93,22 @@ function MonitorModel({ layout, deskTopY }: {
   );
 }
 
-function Person({ z }: { z: number }) {
+function Person({ eyeZ }: { eyeZ: number }) {
   return (
-    <group position={[0, 0, z]}>
-      <mesh position={[0, 160, 0]}>
+    <group position={[0, 0, eyeZ]}>
+      <mesh position={[0, PERSON_EYE_H, 0]}>
         <sphereGeometry args={[7, 16, 16]} />
         <meshStandardMaterial color="#ddb898" roughness={0.9} />
       </mesh>
-      <mesh position={[-2.5, 1, 6]}>
+      <mesh position={[-3, PERSON_EYE_H + 1, 6]}>
         <sphereGeometry args={[1.2, 8, 8]} />
         <meshStandardMaterial color="white" />
       </mesh>
-      <mesh position={[2.5, 1, 6]}>
+      <mesh position={[3, PERSON_EYE_H + 1, 6]}>
         <sphereGeometry args={[1.2, 8, 8]} />
         <meshStandardMaterial color="white" />
       </mesh>
-      <mesh position={[0, 140, -4]}>
+      <mesh position={[0, PERSON_EYE_H - 20, -4]}>
         <cylinderGeometry args={[10, 7, 28, 12]} />
         <meshStandardMaterial color="#3366aa" roughness={0.95} />
       </mesh>
@@ -119,108 +116,116 @@ function Person({ z }: { z: number }) {
   );
 }
 
-// ─── Scene Objects (shared between both views) ───────────────────────────────
-
-function SceneContent({ scene }: { scene: SceneState }) {
+function SceneObjects({ scene }: { scene: SceneState }) {
   const deskTopY = scene.deskHeightCm;
+  const eyeZ = HEAD_Z_CM;
+
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[50, 200, 100]} intensity={0.7} />
-      <pointLight position={[0, 180, scene.headDistance + scene.deskDepthCm / 2]} intensity={0.3} />
+      {/* Lights */}
+      <ambientLight intensity={0.9} color="#ffffff" />
+      <directionalLight position={[0, 200, scene.headDistance + scene.deskDepthCm / 2]} intensity={0.8} />
+      <hemisphereLight args={["#8888ff", "#444422", 0.4]} />
+
+      {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, ROOM_DEPTH_CM / 2]}>
         <planeGeometry args={[500, ROOM_DEPTH_CM]} />
         <meshStandardMaterial color="#18181e" roughness={1} />
       </mesh>
+
+      {/* Back wall */}
       <mesh position={[0, 120, ROOM_DEPTH_CM]}>
         <planeGeometry args={[500, 240]} />
         <meshStandardMaterial color="#1e1e24" />
       </mesh>
+
+      {/* Desk */}
       <Desk width={scene.deskWidthCm} depth={scene.deskDepthCm} height={scene.deskHeightCm} />
+
+      {/* Monitors */}
       {scene.monitors.map((m) => (
         <MonitorModel key={m.id} layout={m} deskTopY={deskTopY} />
       ))}
-      <Person z={HEAD_Z_CM} />
+
+      {/* Person */}
+      <Person eyeZ={eyeZ} />
     </>
   );
 }
 
-// ─── Front Camera ─────────────────────────────────────────────────────────────
+// ─── Camera components ─────────────────────────────────────────────────────────
 
-function FrontCamera({ headDistance }: { headDistance: number }) {
+function FrontCameraController({ scene }: { scene: SceneState }) {
   const camRef = useRef<PerspectiveCamera>(null!);
+  const initialized = useRef(false);
+
   useFrame(() => {
-    if (camRef.current && _scene) {
-      camRef.current.lookAt(0, _scene.deskHeightCm / 2 + 20, _scene.headDistance + _scene.deskDepthCm / 2);
+    if (!initialized.current && camRef.current) {
+      const cam = camRef.current;
+      cam.position.set(0, PERSON_EYE_H, scene.headDistance - 20);
+      cam.lookAt(0, scene.deskHeightCm + 10, scene.headDistance + scene.deskDepthCm / 2);
+      cam.fov = 50;
+      cam.near = 1;
+      cam.far = 500;
+      cam.updateProjectionMatrix();
+      initialized.current = true;
     }
   });
-  return <perspectiveCamera ref={camRef} args={[45, 1, 1, 500]} position={[0, 90, headDistance - 30]} />;
+
+  return <perspectiveCamera ref={camRef} args={[50, 1, 1, 500]} />;
 }
 
-// ─── Top Camera ───────────────────────────────────────────────────────────────
-
-function TopCamera() {
+function TopCameraController() {
   const camRef = useRef<OrthographicCamera>(null!);
+  const initialized = useRef(false);
+
   useFrame(() => {
-    if (camRef.current) {
-      camRef.current.lookAt(0, 0, 150);
+    if (!initialized.current && camRef.current) {
+      const cam = camRef.current;
+      cam.position.set(0, 280, 140);
+      cam.lookAt(0, 0, 150);
+      cam.left = -200;
+      cam.right = 200;
+      cam.top = 200;
+      cam.bottom = -200;
+      cam.zoom = 3;
+      cam.near = 0.1;
+      cam.far = 500;
+      cam.updateProjectionMatrix();
+      initialized.current = true;
     }
   });
-  return <orthographicCamera ref={camRef} args={[-200, 200, 200, -200, 0.1, 500]} position={[0, 280, 140]} zoom={3} />;
+
+  return <orthographicCamera ref={camRef} args={[-200, 200, 200, -200, 0.1, 500]} />;
 }
 
-// ─── Individual Canvas wrappers (completely isolated WebGL contexts) ────────
+// ─── Canvas wrappers ──────────────────────────────────────────────────────────
 
 function FrontCanvas({ scene }: { scene: SceneState }) {
-  const camRef = useRef<PerspectiveCamera>(null!);
-  const lookAtTarget = useRef({ x: 0, y: scene.deskHeightCm / 2 + 20, z: scene.headDistance + scene.deskDepthCm / 2 });
-
-  // useFrame only works inside Canvas children — create a component for it
-  function LookAtController() {
-    const frameRef = useRef(0);
-    useFrame(() => {
-      if (frameRef.current < 2 && camRef.current) {
-        camRef.current.lookAt(lookAtTarget.current.x, lookAtTarget.current.y, lookAtTarget.current.z);
-        frameRef.current++;
-      }
-    });
-    return null;
-  }
-
-  // Update lookAt when scene changes
-  useEffect(() => {
-    lookAtTarget.current = { x: 0, y: scene.deskHeightCm / 2 + 20, z: scene.headDistance + scene.deskDepthCm / 2 };
-  }, [scene]);
-
   return (
-    <Canvas style={{ width: "100%", height: "100%" }}>
-      <perspectiveCamera ref={camRef} args={[45, 1, 1, 500]} position={[0, 90, scene.headDistance - 30]} />
-      <LookAtController />
-      <SceneContent scene={scene} />
-    </Canvas>
+    <div style={{ width: "100%", height: "100%", background: "#1a1a20", borderRadius: 8, overflow: "hidden" }}>
+      <Canvas
+        style={{ width: "100%", height: "100%" }}
+        onCreated={({ gl }) => { gl.setClearColor("#1a1a20"); }}
+      >
+        <FrontCameraController scene={scene} />
+        <SceneObjects scene={scene} />
+      </Canvas>
+    </div>
   );
 }
 
 function TopCanvas({ scene }: { scene: SceneState }) {
-  const camRef = useRef<OrthographicCamera>(null!);
-
-  function LookAtController() {
-    const frameRef = useRef(0);
-    useFrame(() => {
-      if (frameRef.current < 2 && camRef.current) {
-        camRef.current.lookAt(0, 0, 150);
-        frameRef.current++;
-      }
-    });
-    return null;
-  }
-
   return (
-    <Canvas style={{ width: "100%", height: "100%" }}>
-      <orthographicCamera ref={camRef} args={[-200, 200, 200, -200, 0.1, 500]} position={[0, 280, 140]} zoom={3} />
-      <LookAtController />
-      <SceneContent scene={scene} />
-    </Canvas>
+    <div style={{ width: "100%", height: "100%", background: "#1a1a20", borderRadius: 8, overflow: "hidden" }}>
+      <Canvas
+        style={{ width: "100%", height: "100%" }}
+        onCreated={({ gl }) => { gl.setClearColor("#1a1a20"); }}
+      >
+        <TopCameraController />
+        <SceneObjects scene={scene} />
+      </Canvas>
+    </div>
   );
 }
 
@@ -231,20 +236,18 @@ export interface DeskScene3DProps {
   onSceneChange: (s: SceneState) => void;
 }
 
-export default function DeskScene3D({ scene, onSceneChange }: DeskScene3DProps) {
-  setSceneRef(scene);
-
+export default function DeskScene3D({ scene }: DeskScene3DProps) {
   return (
-    <div className="flex gap-2 w-full">
+    <div className="flex gap-2" style={{ height: 390 }}>
       <div className="flex-1 flex flex-col">
         <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">Front View</div>
-        <div className="flex-1 rounded-xl border border-border overflow-hidden bg-[#1a1a1e]" style={{ minHeight: 360 }}>
+        <div className="flex-1 rounded-xl border border-border overflow-hidden">
           <FrontCanvas scene={scene} />
         </div>
       </div>
       <div className="flex-1 flex flex-col">
         <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">Top View</div>
-        <div className="flex-1 rounded-xl border border-border overflow-hidden bg-[#1a1a1e]" style={{ minHeight: 360 }}>
+        <div className="flex-1 rounded-xl border border-border overflow-hidden">
           <TopCanvas scene={scene} />
         </div>
       </div>
