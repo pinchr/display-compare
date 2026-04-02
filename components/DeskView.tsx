@@ -164,7 +164,7 @@ export default function DeskView({ monitors, arrangements, onArrangementsChange 
               <input type="range" min={20} max={150} step={5} value={sharedHeadDistance}
                 onChange={(e) => setSharedHeadDistance(parseInt(e.target.value))}
                 className="w-20 accent-blue-500" />
-              <span className="text-[9px] font-mono text-text-secondary w-10">{sharedHeadDistance}cm</span>
+              <span className="text-[9px] font-mono text-text-secondary w-12">{sharedHeadDistance}cm</span>
             </div>
             <DeskScene3D scene={scene3D} onSceneChange={handleScene3DChange} />
           </div>
