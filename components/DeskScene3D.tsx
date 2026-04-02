@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Canvas, useThree, useFrame, ThreeEvent } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 import { PerspectiveCamera, OrthographicCamera, Raycaster, Vector2, Plane, Vector3 } from "three";
 import { Monitor } from "@/lib/monitors/types";
 import { calcWidthCm, calcHeightCm } from "@/lib/monitors/calculations";
@@ -28,7 +29,7 @@ export interface SceneState {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ROOM_DEPTH_CM = 280;
-const HEAD_Z_CM = 8;
+const HEAD_Z_CM = 20;
 const MONITOR_STAND_H = 3;
 const PERSON_EYE_H = 125;
 
@@ -116,23 +117,46 @@ function MonitorModel({
 }
 
 function Person({ eyeZ }: { eyeZ: number }) {
+  const seatY = 75; // chair seat at desk surface height (sitting at desk)
   return (
     <group position={[0, 0, eyeZ]}>
-      <mesh position={[0, PERSON_EYE_H, 0]}>
+      {/* Chair back */}
+      <mesh position={[0, seatY + 25, -8]}>
+        <boxGeometry args={[18, 50, 3]} />
+        <meshStandardMaterial color="#3a3020" roughness={0.9} />
+      </mesh>
+      {/* Chair seat */}
+      <mesh position={[0, seatY, 0]}>
+        <boxGeometry args={[18, 4, 16]} />
+        <meshStandardMaterial color="#3a3020" roughness={0.9} />
+      </mesh>
+      {/* Torso (seated) */}
+      <mesh position={[0, seatY + 20, 0]}>
+        <cylinderGeometry args={[6, 7, 24, 12]} />
+        <meshStandardMaterial color="#3366aa" roughness={0.95} />
+      </mesh>
+      {/* Head */}
+      <mesh position={[0, seatY + 50, 0]}>
         <sphereGeometry args={[7, 16, 16]} />
         <meshStandardMaterial color="#ddb898" roughness={0.9} />
       </mesh>
-      <mesh position={[-3, PERSON_EYE_H + 1, 6]}>
-        <sphereGeometry args={[1.2, 8, 8]} />
+      {/* Eyes (looking forward) */}
+      <mesh position={[-2.5, seatY + 52, 6]}>
+        <sphereGeometry args={[1, 8, 8]} />
         <meshStandardMaterial color="white" />
       </mesh>
-      <mesh position={[3, PERSON_EYE_H + 1, 6]}>
-        <sphereGeometry args={[1.2, 8, 8]} />
+      <mesh position={[2.5, seatY + 52, 6]}>
+        <sphereGeometry args={[1, 8, 8]} />
         <meshStandardMaterial color="white" />
       </mesh>
-      <mesh position={[0, PERSON_EYE_H - 20, -4]}>
-        <cylinderGeometry args={[10, 7, 28, 12]} />
-        <meshStandardMaterial color="#3366aa" roughness={0.95} />
+      {/* Arms reaching forward to desk surface */}
+      <mesh position={[-12, seatY + 5, 35]} rotation={[0.5, 0, 0.3]}>
+        <cylinderGeometry args={[2.5, 2.5, 50, 8]} />
+        <meshStandardMaterial color="#ddb898" roughness={0.9} />
+      </mesh>
+      <mesh position={[12, seatY + 5, 35]} rotation={[0.5, 0, -0.3]}>
+        <cylinderGeometry args={[2.5, 2.5, 50, 8]} />
+        <meshStandardMaterial color="#ddb898" roughness={0.9} />
       </mesh>
     </group>
   );
@@ -154,9 +178,9 @@ function SceneObjects({
 
   return (
     <>
-      <ambientLight intensity={1.2} color="#ffffff" />
-      <directionalLight position={[50, 300, scene.headDistance + scene.deskDepthCm / 2]} intensity={1.2} castShadow />
-      <pointLight position={[0, 150, scene.headDistance + scene.deskDepthCm / 2]} intensity={0.8} color="#ffeecc" />
+      <ambientLight intensity={1.5} color="#ffffff" />
+      <directionalLight position={[0, 300, scene.headDistance + scene.deskDepthCm / 2]} intensity={1.5} castShadow />
+      <pointLight position={[0, 100, scene.headDistance + scene.deskDepthCm / 2]} intensity={1.0} color="#ffeecc" />
 
       {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, ROOM_DEPTH_CM / 2]}>
@@ -191,30 +215,15 @@ function SceneObjects({
 }
 
 // ─── Camera Controllers ───────────────────────────────────────────────────────
+// OrbitControls takes over after initial position — these just set the target
 
 function FrontCameraSetup({ scene }: { scene: SceneState }) {
   const { camera } = useThree() as { camera: PerspectiveCamera };
   useEffect(() => {
-    // Camera at person's eye level, in front of desk, looking at desk center
-    camera.position.set(0, scene.deskHeightCm + 5, scene.headDistance - 30);
-    camera.lookAt(0, scene.deskHeightCm + 20, scene.headDistance + scene.deskDepthCm / 2);
+    // Set look-at target so OrbitControls knows where to orbit around
+    camera.lookAt(0, scene.deskHeightCm, scene.headDistance + scene.deskDepthCm / 2);
     camera.updateProjectionMatrix();
   }, [camera, scene.headDistance, scene.deskHeightCm, scene.deskDepthCm]);
-  return null;
-}
-
-function TopCameraSetup() {
-  const { camera } = useThree() as { camera: OrthographicCamera };
-  useEffect(() => {
-    const cam = camera as OrthographicCamera;
-    cam.position.set(0, 250, 120);
-    cam.left = -150;
-    cam.right = 150;
-    cam.top = 150;
-    cam.bottom = -150;
-    cam.lookAt(0, 0, 130);
-    cam.updateProjectionMatrix();
-  }, [camera]);
   return null;
 }
 
@@ -278,18 +287,23 @@ function FrontCanvas({
     <div style={{ width: "100%", height: "100%", borderRadius: 8, overflow: "hidden" }}>
       <Canvas
         style={{ width: "100%", height: "100%" }}
-        camera={{ position: [0, PERSON_EYE_H, scene.headDistance - 20], fov: 50, near: 1, far: 500 }}
+        camera={{ position: [0, 120, scene.headDistance + 20], fov: 50, near: 1, far: 500 }}
         onCreated={({ gl, scene: threeScene, camera }) => {
           gl.setClearColor(0x202028, 1);
-          const cam = camera as PerspectiveCamera;
-          cam.lookAt(0, scene.deskHeightCm + 10, scene.headDistance + scene.deskDepthCm / 2);
-          cam.updateProjectionMatrix();
           gl.render(threeScene, camera);
         }}
       >
         <FrontCameraSetup scene={scene} />
         <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
+        <OrbitControls
+          enabled={!dragging}
+          enableDamping
+          dampingFactor={0.05}
+          minDistance={30}
+          maxDistance={300}
+          maxPolarAngle={Math.PI / 2}
+        />
       </Canvas>
     </div>
   );
@@ -310,22 +324,23 @@ function TopCanvas({
     <div style={{ width: "100%", height: "100%", borderRadius: 8, overflow: "hidden" }}>
       <Canvas
         style={{ width: "100%", height: "100%" }}
+        camera={{ position: [0, 150, scene.headDistance + scene.deskDepthCm / 2], fov: 50, near: 0.1, far: 500 }}
         onCreated={({ gl, scene: threeScene, camera }) => {
           gl.setClearColor(0x202028, 1);
-          const cam = camera as OrthographicCamera;
-          cam.position.set(0, 250, 120);
-          cam.left = -150;
-          cam.right = 150;
-          cam.top = 150;
-          cam.bottom = -150;
-          cam.lookAt(0, 0, 130);
+          const cam = camera as PerspectiveCamera;
+          // Look straight down at desk center
+          cam.lookAt(0, scene.deskHeightCm / 2, scene.headDistance + scene.deskDepthCm / 2);
           cam.updateProjectionMatrix();
           gl.render(threeScene, camera);
         }}
       >
-        <TopCameraSetup />
         <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
+        <OrbitControls
+          enabled={!dragging}
+          enableDamping
+          dampingFactor={0.05}
+        />
       </Canvas>
     </div>
   );
