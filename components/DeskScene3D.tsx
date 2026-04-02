@@ -29,7 +29,7 @@ const WALL_GAP_CM = 10
 const BODY_OFFSET_CM = 15
 const MONITOR_BACK_OFFSET = 15
 const MONITOR_STAND_H = 3
-const PERSON_EYE_H = 125
+const PERSON_EYE_H = 110
 const ROOM_DEPTH_CM = 400
 
 function derivePositions(scene: SceneState) {
@@ -59,12 +59,12 @@ function Desk({ width, depth, height, backZ }: { width: number; depth: number; h
     <group>
       <mesh position={[0, height, centerZ]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial color="#7a5c20" roughness={0.85} />
+        <meshStandardMaterial color="#8B7355" roughness={0.75} />
       </mesh>
       {([[-width/2+3, backZ+3],[width/2-3, backZ+3],[-width/2+3, backZ+depth-3],[width/2-3, backZ+depth-3]] as [number,number][]).map(([x,z],i) => (
         <mesh key={i} position={[x, height/2, z]}>
           <boxGeometry args={[2.5, height, 2.5]} />
-          <meshStandardMaterial color="#4a3820" roughness={0.95} />
+          <meshStandardMaterial color="#3a3a4a" roughness={0.85} />
         </mesh>
       ))}
     </group>
@@ -121,21 +121,22 @@ function Person({ observerZ }: { observerZ: number }) {
   );
 }
 
-function SceneObjects({ scene, draggingId, showPerson, positions, onMonitorPointerDown }: {
+function SceneObjects({ scene, draggingId, showPerson, positions, lightsConfig, onMonitorPointerDown }: {
   scene: SceneState; draggingId: string | null; showPerson: boolean;
   positions: ReturnType<typeof derivePositions>;
+  lightsConfig: { ambient: boolean; ceiling: boolean; desk: boolean };
   onMonitorPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
 }) {
   const { deskBackZ, observerZ, baseMonitorZ } = positions;
   return (
     <>
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[60, 300, observerZ]} intensity={1.2} castShadow />
-      <pointLight position={[0, 180, (deskBackZ+observerZ)/2]} intensity={0.8} color="#ffeecc" />
-      <mesh position={[0, 120, 0]}><planeGeometry args={[600, 240]} /><meshStandardMaterial color="#23222a" /></mesh>
+      {lightsConfig.ambient && <ambientLight intensity={1.2} />}
+      {lightsConfig.ceiling && <directionalLight position={[60, 300, observerZ]} intensity={1.2} castShadow />}
+      {lightsConfig.desk && <pointLight position={[0, 180, (deskBackZ+observerZ)/2]} intensity={0.8} color="#ffeecc" />}
+      <mesh position={[0, 120, 0]}><planeGeometry args={[600, 240]} /><meshStandardMaterial color="#2a2a32" /></mesh>
       <mesh rotation={[-Math.PI/2, 0, 0]} position={[0, 0, ROOM_DEPTH_CM/2]}>
         <planeGeometry args={[600, ROOM_DEPTH_CM]} />
-        <meshStandardMaterial color="#3a3a44" roughness={1} />
+        <meshStandardMaterial color="#2e2e38" roughness={1} />
       </mesh>
       <Desk width={scene.deskWidthCm} depth={scene.deskDepthCm} height={scene.deskHeightCm} backZ={deskBackZ} />
       {scene.monitors.map((m) => (
@@ -199,8 +200,9 @@ function DragController({ dragging, scene, onUpdate }: {
   return null;
 }
 
-function FrontCanvas({ scene, positions, dragging, onMonitorPointerDown, onDragUpdate }: {
+function FrontCanvas({ scene, positions, dragging, lightsConfig, onMonitorPointerDown, onDragUpdate }: {
   scene: SceneState; positions: ReturnType<typeof derivePositions>; dragging: DragState | null;
+  lightsConfig: { ambient: boolean; ceiling: boolean; desk: boolean };
   onMonitorPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
   onDragUpdate: (id: string, xCm: number, zCm: number) => void;
 }) {
@@ -208,17 +210,18 @@ function FrontCanvas({ scene, positions, dragging, onMonitorPointerDown, onDragU
     <div style={{ width: "100%", height: "100%", borderRadius: 8, overflow: "hidden" }}>
       <Canvas style={{ width: "100%", height: "100%" }}
         camera={{ position: [0, PERSON_EYE_H, positions.observerZ], fov: 55, near: 1, far: 1000 }}
-        onCreated={({ gl }) => gl.setClearColor(0x202028, 1)}>
+        onCreated={({ gl }) => gl.setClearColor(0x1a1a24, 1)}>
         <FrontCameraSetup positions={positions} />
-        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={false} positions={positions} onMonitorPointerDown={onMonitorPointerDown} />
+        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={false} positions={positions} lightsConfig={lightsConfig} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
       </Canvas>
     </div>
   );
 }
 
-function TopCanvas({ scene, positions, dragging, onMonitorPointerDown, onDragUpdate }: {
+function TopCanvas({ scene, positions, dragging, lightsConfig, onMonitorPointerDown, onDragUpdate }: {
   scene: SceneState; positions: ReturnType<typeof derivePositions>; dragging: DragState | null;
+  lightsConfig: { ambient: boolean; ceiling: boolean; desk: boolean };
   onMonitorPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
   onDragUpdate: (id: string, xCm: number, zCm: number) => void;
 }) {
@@ -226,9 +229,9 @@ function TopCanvas({ scene, positions, dragging, onMonitorPointerDown, onDragUpd
     <div style={{ width: "100%", height: "100%", borderRadius: 8, overflow: "hidden" }}>
       <Canvas style={{ width: "100%", height: "100%" }} orthographic
         camera={{ position: [0, 300, 100], near: 1, far: 1000 }}
-        onCreated={({ gl }) => gl.setClearColor(0x202028, 1)}>
+        onCreated={({ gl }) => gl.setClearColor(0x141820, 1)}>
         <TopCameraSetup scene={scene} positions={positions} />
-        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={true} positions={positions} onMonitorPointerDown={onMonitorPointerDown} />
+        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={true} positions={positions} lightsConfig={lightsConfig} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
       </Canvas>
     </div>
@@ -242,6 +245,9 @@ export interface DeskScene3DProps {
 
 export default function DeskScene3D({ scene, onSceneChange }: DeskScene3DProps) {
   const [dragging, setDragging] = useState<DragState | null>(null);
+  const [lights, setLights] = useState({ ambient: true, ceiling: true, desk: true });
+
+  const toggleLight = (key: keyof typeof lights) => setLights(prev => ({ ...prev, [key]: !prev[key] }));
   const positions = useMemo(() => derivePositions(scene), [scene.headDistance, scene.deskDepthCm, scene.deskHeightCm]);
 
   const handleMonitorPointerDown = useCallback((id: string, e: ThreeEvent<PointerEvent>) => {
@@ -262,13 +268,30 @@ export default function DeskScene3D({ scene, onSceneChange }: DeskScene3DProps) 
   }, [dragging]);
 
   return (
-    <div style={{ display: "flex", gap: 8 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Light toggles */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 0" }}>
+        <span style={{ fontSize: 9, color: "#888", textTransform: "uppercase" }}>Światło:</span>
+        {(["ambient", "ceiling", "desk"] as const).map(key => (
+          <button key={key} onClick={() => toggleLight(key)}
+            style={{
+              padding: "4px 10px", fontSize: 9, borderRadius: 6, border: "1px solid",
+              background: lights[key] ? "#2a3a4a" : "#1a1a1a",
+              borderColor: lights[key] ? "#4a6a8a" : "#333",
+              color: lights[key] ? "#8ab" : "#555",
+              cursor: "pointer"
+            }}>
+            {key === "ambient" ? "💡 Rozp." : key === "ceiling" ? "🔆 Sufit" : "🪫 Biurko"}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">
           Front 3D — {positions.actualDistance}cm do monitorów
         </div>
         <div style={{ height: 380, background: "#1a1a22", borderRadius: 12 }} className="rounded-xl border border-border overflow-hidden">
-          <FrontCanvas scene={scene} positions={positions} dragging={dragging} onMonitorPointerDown={handleMonitorPointerDown} onDragUpdate={handleDragUpdate} />
+          <FrontCanvas scene={scene} positions={positions} dragging={dragging} lightsConfig={lights} onMonitorPointerDown={handleMonitorPointerDown} onDragUpdate={handleDragUpdate} />
         </div>
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -276,8 +299,9 @@ export default function DeskScene3D({ scene, onSceneChange }: DeskScene3DProps) 
           Top 3D — biurko przy ścianie północnej
         </div>
         <div style={{ height: 380, background: "#1a1a22", borderRadius: 12 }} className="rounded-xl border border-border overflow-hidden">
-          <TopCanvas scene={scene} positions={positions} dragging={dragging} onMonitorPointerDown={handleMonitorPointerDown} onDragUpdate={handleDragUpdate} />
+          <TopCanvas scene={scene} positions={positions} dragging={dragging} lightsConfig={lights} onMonitorPointerDown={handleMonitorPointerDown} onDragUpdate={handleDragUpdate} />
         </div>
+      </div>
       </div>
     </div>
   );
