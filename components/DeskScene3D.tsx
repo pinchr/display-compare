@@ -25,11 +25,11 @@ export interface SceneState {
   monitors: MonitorLayout3D[];
 }
 
-const WALL_GAP_CM = 10
-const BODY_OFFSET_CM = 15
+const WALL_GAP_CM = 5
+const BODY_OFFSET_CM = 10
 const MONITOR_BACK_OFFSET = 15
 const MONITOR_STAND_H = 3
-const PERSON_EYE_H = 110
+const PERSON_EYE_H = 105
 const ROOM_DEPTH_CM = 400
 
 function derivePositions(scene: SceneState) {
