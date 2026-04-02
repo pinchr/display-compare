@@ -143,14 +143,16 @@ function Person({ eyeZ }: { eyeZ: number }) {
 function SceneObjects({
   scene,
   draggingId,
+  showPerson,
   onMonitorPointerDown,
 }: {
   scene: SceneState;
   draggingId: string | null;
+  showPerson: boolean;
   onMonitorPointerDown: (id: string, e: ThreeEvent<PointerEvent>) => void;
 }) {
   const deskTopY = scene.deskHeightCm;
-  const eyeZ = HEAD_Z_CM;
+  const eyeZ = scene.headDistance + scene.deskDepthCm / 2;
 
   return (
     <>
@@ -184,8 +186,8 @@ function SceneObjects({
         />
       ))}
 
-      {/* Person */}
-      <Person eyeZ={eyeZ} />
+      {/* Person — only visible in top view */}
+      {showPerson && <Person eyeZ={eyeZ} />}
     </>
   );
 }
@@ -195,9 +197,8 @@ function SceneObjects({
 function FrontCameraSetup({ scene }: { scene: SceneState }) {
   const { camera } = useThree() as { camera: PerspectiveCamera };
   useEffect(() => {
-    // Camera sits BEHIND the observer (observer at headDistance beyond desk back)
-    // Camera at observer's eye level, looking TOWARD the desk (lower Z)
-    camera.position.set(0, scene.deskHeightCm + 50, scene.headDistance + scene.deskDepthCm / 2 + 80);
+    // Camera at observer's position — see scene from person's POV
+    camera.position.set(0, scene.deskHeightCm + 50, scene.headDistance + scene.deskDepthCm / 2);
     camera.lookAt(0, scene.deskHeightCm + 50, scene.deskDepthCm / 2);
     camera.updateProjectionMatrix();
   }, [camera, scene.headDistance, scene.deskHeightCm, scene.deskDepthCm]);
@@ -283,13 +284,13 @@ function FrontCanvas({
         onCreated={({ gl, scene: threeScene, camera }) => {
           gl.setClearColor(0x202028, 1);
           const cam = camera as PerspectiveCamera;
-          cam.lookAt(0, scene.deskHeightCm + 10, scene.headDistance + scene.deskDepthCm / 2);
+          cam.lookAt(0, scene.deskHeightCm + 50, scene.deskDepthCm / 2);
           cam.updateProjectionMatrix();
           gl.render(threeScene, camera);
         }}
       >
         <FrontCameraSetup scene={scene} />
-        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} onMonitorPointerDown={onMonitorPointerDown} />
+        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={false} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
       </Canvas>
     </div>
@@ -319,13 +320,13 @@ function TopCanvas({
           cam.right = 150;
           cam.top = 150;
           cam.bottom = -150;
-          cam.lookAt(0, 0, 130);
+          cam.lookAt(0, scene.deskHeightCm, scene.deskDepthCm / 2);
           cam.updateProjectionMatrix();
           gl.render(threeScene, camera);
         }}
       >
         <TopCameraSetup />
-        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} onMonitorPointerDown={onMonitorPointerDown} />
+        <SceneObjects scene={scene} draggingId={dragging?.monitorId ?? null} showPerson={true} onMonitorPointerDown={onMonitorPointerDown} />
         <DragController dragging={dragging} scene={scene} onUpdate={onDragUpdate} />
       </Canvas>
     </div>
