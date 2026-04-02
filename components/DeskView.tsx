@@ -463,12 +463,20 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
   const CANVAS_H = 340;
   // HEAD_X must be declared BEFORE overlaps useMemo that references it
   const HEAD_X = CANVAS_W / 2;
-  // Dynamic scale: fit the entire scene (head → desk → back of desk) into canvas height
-  const TOTAL_SCENE_CM = headDistance + deskDepthCm + 15; // +15cm margin above desk
-  const USABLE_H = CANVAS_H - 50; // 50px reserved for head indicator
-  const SCALE = USABLE_H / TOTAL_SCENE_CM;
-  // HEAD_Y_BIRD must be before overlaps useMemo
-  const HEAD_Y_BIRD = 310; // FIXED - head stays at bottom
+  // FIXED scale — desk and monitors stay same pixel size regardless of headDistance
+  // Scale so desk depth ≈ 130px at default deskDepthCm=70 (~1.87 px/cm, similar to original)
+  const SCALE = 130 / deskDepthCm; // px/cm, fixed
+  // HEAD_Y_BIRD = position of viewer's head on canvas (desk sits between viewer and back wall)
+  const HEAD_Y_BIRD = 310; // fixed at bottom of canvas
+  // DESK_FRONT_Y = desk's near edge (closer to viewer), shifts UP with headDistance (parallax)
+  // As viewer retreats (headDistance↑), desk's near edge moves UP on screen (smaller Y)
+  const DESK_FRONT_Y = 310 - headDistance * 1.0;
+  // DESK_BACK_Y = desk's far edge
+  const DESK_BACK_Y = DESK_FRONT_Y + deskDepthCm * SCALE;
+  // DESK_W_PX = desk width in X — FIXED (bird's eye, no depth perspective in X)
+  const DESK_W_PX = Math.min(360, CANVAS_W - 40); // fixed ~360px, centered
+  // DESK_H_PX = desk depth in pixels
+  const DESK_H_PX = DESK_BACK_Y - DESK_FRONT_Y;
 
   const totalPhysCm = useMemo(() => monitors.reduce((sum, m) => sum + calcWidthCm(m.diagonal, m.widthPx, m.heightPx), 0) + (monitors.length - 1) * 3, [monitors]);
 
@@ -485,11 +493,11 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
     const maxXCm = totalPhysCm / 2 - halfW;
     const newXCm = Math.max(minXCm, Math.min(maxXCm, dragStart.current.arr.xCm + dxCm));
 
-    // Y-axis dragging — rect-relative, invert: drag up = positive yCm (monitor higher/farther)
+    // Y-axis dragging — rect-relative, invert: drag up = positive yCm (monitor deeper on desk)
     const mouseY = e.clientY - rect.top;
     const dy = mouseY - dragStart.current.mouseY;
     const dyCm = -dy / SCALE;
-    const newYCm = dragStart.current.arr.yCm + dyCm;
+    const newYCm = Math.max(0, Math.min(deskDepthCm, dragStart.current.arr.yCm + dyCm));
 
     const updated = localArrangementsRef.current.map(arr => arr.id === draggingId ? { ...arr, xCm: newXCm, yCm: newYCm } : arr);
     setLocalArrangements(updated);
@@ -507,7 +515,7 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
 
   const overlaps = useMemo(() => {
     const result: { cx: number; cy: number }[] = [];
-    if (!Number.isFinite(SCALE) || !Number.isFinite(headDistance)) return result;
+    if (!Number.isFinite(SCALE)) return result;
     const sorted = [...localArrangements].sort((a, b) => a.xCm - b.xCm);
     for (let i = 0; i < sorted.length - 1; i++) {
       const a = sorted[i];
@@ -525,13 +533,7 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
       }
     }
     return result;
-  }, [localArrangements, headDistance, SCALE]);
-
-  // TopView: head stays fixed at BOTTOM of view. Desk moves TOWARD horizon (smaller Y) as distance increases.
-  // Desk front edge is ALWAYS ABOVE head (further away on screen).
-  // At distance=70: desk at Y=320 (same as head - desk in front of viewer!)
-  // At distance=150: desk at Y=140 (far away at top of canvas)
-  const DESK_FRONT_Y = 310 - headDistance * 1.5; // moves UP (smaller Y) as we retreat
+  }, [localArrangements, headDistance, deskDepthCm, SCALE]);
 
   return (
     <div className="bg-[#1a1a1e] rounded-xl p-4">
@@ -552,10 +554,10 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
       >
         <rect x={10} y={HEAD_Y_BIRD - 10} width={CANVAS_W - 20} height={CANVAS_H - HEAD_Y_BIRD + 10} fill="#222228" rx={4} />
 
-        {/* FOV */}
+        {/* FOV — lines converge to middle of desk surface */}
         <g opacity={0.15}>
-          <line x1={HEAD_X} y1={HEAD_Y_BIRD - 15} x2={HEAD_X - 180} y2={HEAD_Y_BIRD - 15 - headDistance * SCALE} stroke="#5a5a6a" strokeWidth={1} />
-          <line x1={HEAD_X} y1={HEAD_Y_BIRD - 15} x2={HEAD_X + 180} y2={HEAD_Y_BIRD - 15 - headDistance * SCALE} stroke="#5a5a6a" strokeWidth={1} />
+          <line x1={HEAD_X} y1={HEAD_Y_BIRD - 5} x2={HEAD_X - 180} y2={DESK_FRONT_Y + deskDepthCm * SCALE / 2} stroke="#5a5a6a" strokeWidth={1} />
+          <line x1={HEAD_X} y1={HEAD_Y_BIRD - 5} x2={HEAD_X + 180} y2={DESK_FRONT_Y + deskDepthCm * SCALE / 2} stroke="#5a5a6a" strokeWidth={1} />
         </g>
 
         {overlaps.map((o, i) => <circle key={i} cx={o.cx} cy={o.cy} r={5} fill="#ef4444" opacity={0.9} />)}
@@ -577,7 +579,6 @@ function TopView({ monitors, arrangements, headDistance, deskWidthCm, deskDepthC
             ? calcWidthCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx)
             : calcHeightCm(arr.monitor.diagonal, arr.monitor.widthPx, arr.monitor.heightPx);
           const cx = HEAD_X + arr.xCm * SCALE;
-          // yMon: monitor sits ON desk surface (front edge + depth from front)
           const yMon = DESK_FRONT_Y + arr.yCm * SCALE;
           const wPx = wCm * SCALE;
           const monitorDepthCm = isPortrait ? wCm * 0.12 : 8;
