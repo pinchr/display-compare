@@ -146,7 +146,28 @@ export default function DeskView({ monitors, arrangements, onArrangementsChange 
             <TopView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} deskWidthCm={deskWidthCm} deskDepthCm={deskDepthCm} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} />
           </div>
         ) : (
-          <DeskScene3D scene={scene3D} onSceneChange={handleScene3DChange} />
+          <div className="space-y-3">
+            {/* Desk & observer controls — shared with 3D view */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <span className="text-[10px] text-text-tertiary font-medium">Desk:</span>
+              <span className="text-[9px] text-text-secondary">W</span>
+              <input type="range" min={100} max={300} step={5} value={deskWidthCm}
+                onChange={(e) => setDeskWidthCm(parseInt(e.target.value))}
+                className="w-20 accent-amber-600" />
+              <span className="text-[9px] font-mono text-text-secondary w-10">{deskWidthCm}cm</span>
+              <span className="text-[9px] text-text-secondary ml-2">D</span>
+              <input type="range" min={40} max={120} step={5} value={deskDepthCm}
+                onChange={(e) => setDeskDepthCm(parseInt(e.target.value))}
+                className="w-16 accent-amber-600" />
+              <span className="text-[9px] font-mono text-text-secondary w-10">{deskDepthCm}cm</span>
+              <span className="text-[9px] text-text-secondary ml-2">👤</span>
+              <input type="range" min={20} max={150} step={5} value={sharedHeadDistance}
+                onChange={(e) => setSharedHeadDistance(parseInt(e.target.value))}
+                className="w-20 accent-blue-500" />
+              <span className="text-[9px] font-mono text-text-secondary w-10">{sharedHeadDistance}cm</span>
+            </div>
+            <DeskScene3D scene={scene3D} onSceneChange={handleScene3DChange} />
+          </div>
         )}
       </div>
     </div>
