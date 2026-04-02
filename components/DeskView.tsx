@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Monitor } from "@/lib/monitors/types";
 import { calcWidthCm, calcHeightCm, calcPPI } from "@/lib/monitors/calculations";
 import { MOCKUPS, CATEGORIES, Mockup, AppWindow } from "@/lib/mockups/types";
+import DeskScene3D from "./DeskScene3D";
 
 const REF_W = 1920;
 const REF_H = 1080;
@@ -41,6 +42,7 @@ interface DeskViewProps {
 
 export default function DeskView({ monitors, arrangements, onArrangementsChange }: DeskViewProps) {
   const displayMonitors = monitors.slice(0, 3);
+  const [viewMode, setViewMode] = useState<"svg" | "3d">("svg");
 
   if (displayMonitors.length < 2) {
     return <div className="text-center py-12 text-text-tertiary text-sm">Select at least 2 monitors to see the desk view</div>;
@@ -86,15 +88,66 @@ export default function DeskView({ monitors, arrangements, onArrangementsChange 
     onArrangementsChange(layouts);
   }, [displayMonitors, onArrangementsChange]);
 
+  // Build scene state for 3D view
+  const scene3D = useMemo(() => ({
+    headDistance: sharedHeadDistance,
+    deskWidthCm,
+    deskDepthCm,
+    deskHeightCm: 75,
+    monitors: sharedArrangements.map((a) => ({
+      id: a.id,
+      monitor: a.monitor,
+      xCm: a.xCm,
+      yCm: a.yCm,
+      zCm: 0,
+      rotation: a.rotation,
+    })),
+  }), [sharedArrangements, sharedHeadDistance, deskWidthCm, deskDepthCm]);
+
+  const handleScene3DChange = useCallback((newScene: typeof scene3D) => {
+    const newArrangements: MonitorArrangement3D[] = newScene.monitors.map((m) => ({
+      id: m.id,
+      monitor: m.monitor,
+      xCm: m.xCm,
+      yCm: m.yCm,
+      zCm: 70,
+      rotation: m.rotation,
+    }));
+    handleArrangementChange(newArrangements);
+    setSharedHeadDistance(newScene.headDistance);
+  }, [handleArrangementChange]);
+
   return (
     <div className="rounded-2xl border border-border bg-bg-secondary overflow-hidden">
-      <div className="px-5 py-3 border-b border-border bg-bg-tertiary/50">
-        <h3 className="text-sm font-semibold text-accent uppercase tracking-wider">🖥️ Desk View</h3>
-        <p className="text-[9px] text-text-tertiary mt-0.5">Drag monitors in either view • Both views sync in real-time</p>
+      <div className="px-5 py-3 border-b border-border bg-bg-tertiary/50 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-accent uppercase tracking-wider">🖥️ Desk View</h3>
+          <p className="text-[9px] text-text-tertiary mt-0.5">Drag monitors in either view • Both views sync in real-time</p>
+        </div>
+        <div className="flex gap-1">
+          <button
+            onClick={() => setViewMode("svg")}
+            className={`px-3 py-1 text-[10px] rounded-lg transition-colors ${viewMode === "svg" ? "bg-accent text-black font-semibold" : "bg-bg-tertiary text-text-secondary hover:text-text-primary"}`}
+          >
+            SVG
+          </button>
+          <button
+            onClick={() => setViewMode("3d")}
+            className={`px-3 py-1 text-[10px] rounded-lg transition-colors ${viewMode === "3d" ? "bg-accent text-black font-semibold" : "bg-bg-tertiary text-text-secondary hover:text-text-primary"}`}
+          >
+            3D
+          </button>
+        </div>
       </div>
-      <div className="p-4 space-y-4">
-        <FrontView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} deskWidthCm={deskWidthCm} deskDepthCm={deskDepthCm} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} onDeskSizeChange={(w, d) => { setDeskWidthCm(w); setDeskDepthCm(d); }} />
-        <TopView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} deskWidthCm={deskWidthCm} deskDepthCm={deskDepthCm} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} />
+      <div className="p-4">
+        {viewMode === "svg" ? (
+          <div className="space-y-4">
+            <FrontView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} deskWidthCm={deskWidthCm} deskDepthCm={deskDepthCm} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} onDeskSizeChange={(w, d) => { setDeskWidthCm(w); setDeskDepthCm(d); }} />
+            <TopView monitors={displayMonitors} arrangements={sharedArrangements} headDistance={sharedHeadDistance} deskWidthCm={deskWidthCm} deskDepthCm={deskDepthCm} onArrangementsChange={handleArrangementChange} onHeadDistanceChange={setSharedHeadDistance} />
+          </div>
+        ) : (
+          <DeskScene3D scene={scene3D} onSceneChange={handleScene3DChange} />
+        )}
       </div>
     </div>
   );
