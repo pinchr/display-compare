@@ -195,9 +195,10 @@ function SceneObjects({
 function FrontCameraSetup({ scene }: { scene: SceneState }) {
   const { camera } = useThree() as { camera: PerspectiveCamera };
   useEffect(() => {
-    // Camera at person's eye level, in front of desk, looking at desk center
-    camera.position.set(0, scene.deskHeightCm + 5, scene.headDistance - 30);
-    camera.lookAt(0, scene.deskHeightCm + 20, scene.headDistance + scene.deskDepthCm / 2);
+    // Camera sits BEHIND the observer (observer at headDistance beyond desk back)
+    // Camera at observer's eye level, looking TOWARD the desk (lower Z)
+    camera.position.set(0, scene.deskHeightCm + 50, scene.headDistance + scene.deskDepthCm + 30);
+    camera.lookAt(0, scene.deskHeightCm + 50, scene.deskDepthCm / 2);
     camera.updateProjectionMatrix();
   }, [camera, scene.headDistance, scene.deskHeightCm, scene.deskDepthCm]);
   return null;
@@ -278,7 +279,7 @@ function FrontCanvas({
     <div style={{ width: "100%", height: "100%", borderRadius: 8, overflow: "hidden" }}>
       <Canvas
         style={{ width: "100%", height: "100%" }}
-        camera={{ position: [0, PERSON_EYE_H, scene.headDistance - 20], fov: 50, near: 1, far: 500 }}
+        camera={{ position: [0, 125, 200], fov: 50, near: 1, far: 500 }}
         onCreated={({ gl, scene: threeScene, camera }) => {
           gl.setClearColor(0x202028, 1);
           const cam = camera as PerspectiveCamera;
