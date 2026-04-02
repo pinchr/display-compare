@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
+import { useEffect } from "react";
 import { PerspectiveCamera, OrthographicCamera } from "three";
 import { Monitor } from "@/lib/monitors/types";
 import { calcWidthCm, calcHeightCm } from "@/lib/monitors/calculations";
@@ -154,61 +154,51 @@ function SceneObjects({ scene }: { scene: SceneState }) {
 }
 
 // ─── Camera components ─────────────────────────────────────────────────────────
+// useThree inside Canvas children to configure the default camera
 
-function FrontCameraController({ scene }: { scene: SceneState }) {
-  const camRef = useRef<PerspectiveCamera>(null!);
-  const initialized = useRef(false);
-
-  useFrame(() => {
-    if (!initialized.current && camRef.current) {
-      const cam = camRef.current;
-      cam.position.set(0, PERSON_EYE_H, scene.headDistance - 20);
-      cam.lookAt(0, scene.deskHeightCm + 10, scene.headDistance + scene.deskDepthCm / 2);
-      cam.fov = 50;
-      cam.near = 1;
-      cam.far = 500;
-      cam.updateProjectionMatrix();
-      initialized.current = true;
-    }
-  });
-
-  return <perspectiveCamera ref={camRef} args={[50, 1, 1, 500]} />;
+function FrontCameraSetup({ scene }: { scene: SceneState }) {
+  const { camera } = useThree() as { camera: PerspectiveCamera };
+  useEffect(() => {
+    camera.position.set(0, PERSON_EYE_H, scene.headDistance - 20);
+    camera.lookAt(0, scene.deskHeightCm + 10, scene.headDistance + scene.deskDepthCm / 2);
+    camera.updateProjectionMatrix();
+  }, [camera, scene.headDistance, scene.deskHeightCm, scene.deskDepthCm]);
+  return null;
 }
 
-function TopCameraController() {
-  const camRef = useRef<OrthographicCamera>(null!);
-  const initialized = useRef(false);
-
-  useFrame(() => {
-    if (!initialized.current && camRef.current) {
-      const cam = camRef.current;
-      cam.position.set(0, 280, 140);
-      cam.lookAt(0, 0, 150);
-      cam.left = -200;
-      cam.right = 200;
-      cam.top = 200;
-      cam.bottom = -200;
-      cam.zoom = 3;
-      cam.near = 0.1;
-      cam.far = 500;
-      cam.updateProjectionMatrix();
-      initialized.current = true;
-    }
-  });
-
-  return <orthographicCamera ref={camRef} args={[-200, 200, 200, -200, 0.1, 500]} />;
+function TopCameraSetup() {
+  const { camera } = useThree() as { camera: OrthographicCamera };
+  useEffect(() => {
+    const cam = camera as OrthographicCamera;
+    cam.position.set(0, 280, 140);
+    cam.left = -200;
+    cam.right = 200;
+    cam.top = 200;
+    cam.bottom = -200;
+    cam.zoom = 3;
+    cam.lookAt(0, 0, 150);
+    cam.updateProjectionMatrix();
+  }, [camera]);
+  return null;
 }
 
 // ─── Canvas wrappers ──────────────────────────────────────────────────────────
 
 function FrontCanvas({ scene }: { scene: SceneState }) {
   return (
-    <div style={{ width: "100%", height: "100%", background: "#1a1a20", borderRadius: 8, overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "100%", background: "#2a1a1a", borderRadius: 8, overflow: "hidden" }}>
       <Canvas
         style={{ width: "100%", height: "100%" }}
-        onCreated={({ gl }) => { gl.setClearColor("#1a1a20"); }}
+        camera={{ position: [0, PERSON_EYE_H, scene.headDistance - 20], fov: 50, near: 1, far: 500 }}
+        onCreated={({ gl, scene: threeScene, camera }) => {
+          gl.setClearColor("#2a1a1a", 1);
+          const cam = camera as PerspectiveCamera;
+          cam.lookAt(0, scene.deskHeightCm + 10, scene.headDistance + scene.deskDepthCm / 2);
+          cam.updateProjectionMatrix();
+          gl.render(threeScene, camera);
+        }}
       >
-        <FrontCameraController scene={scene} />
+        <FrontCameraSetup scene={scene} />
         <SceneObjects scene={scene} />
       </Canvas>
     </div>
@@ -217,12 +207,23 @@ function FrontCanvas({ scene }: { scene: SceneState }) {
 
 function TopCanvas({ scene }: { scene: SceneState }) {
   return (
-    <div style={{ width: "100%", height: "100%", background: "#1a1a20", borderRadius: 8, overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "100%", background: "#0a1a0a", borderRadius: 8, overflow: "hidden" }}>
       <Canvas
         style={{ width: "100%", height: "100%" }}
-        onCreated={({ gl }) => { gl.setClearColor("#1a1a20"); }}
+        onCreated={({ gl, scene: threeScene, camera }) => {
+          gl.setClearColor("#0a1a0a", 1);
+          const cam = camera as OrthographicCamera;
+          cam.position.set(0, 280, 140);
+          cam.left = -180;
+          cam.right = 180;
+          cam.top = 180;
+          cam.bottom = -180;
+          cam.lookAt(0, 0, 150);
+          cam.updateProjectionMatrix();
+          gl.render(threeScene, camera);
+        }}
       >
-        <TopCameraController />
+        <TopCameraSetup />
         <SceneObjects scene={scene} />
       </Canvas>
     </div>
@@ -238,16 +239,16 @@ export interface DeskScene3DProps {
 
 export default function DeskScene3D({ scene }: DeskScene3DProps) {
   return (
-    <div className="flex gap-2" style={{ height: 390 }}>
-      <div className="flex-1 flex flex-col">
+    <div style={{ display: "flex", gap: 8 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">Front View</div>
-        <div className="flex-1 rounded-xl border border-border overflow-hidden">
+        <div className="rounded-xl border border-border overflow-hidden" style={{ height: 380 }}>
           <FrontCanvas scene={scene} />
         </div>
       </div>
-      <div className="flex-1 flex flex-col">
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <div className="text-[9px] text-text-tertiary uppercase tracking-wider mb-1 text-center">Top View</div>
-        <div className="flex-1 rounded-xl border border-border overflow-hidden">
+        <div className="rounded-xl border border-border overflow-hidden" style={{ height: 380 }}>
           <TopCanvas scene={scene} />
         </div>
       </div>
