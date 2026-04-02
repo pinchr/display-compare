@@ -118,8 +118,10 @@ function MonitorModel({
 
 // ─── Głowa obserwatora (pozycja zsynchronizowana z Front 3D scroll) ─────────────
 function ObserverHead({ cameraZ, deskDepth }: { cameraZ: number; deskDepth: number }) {
+  // cameraZ already clamped in Front3DScene to [deskDepth-20, ROOM_DEPTH_CM-20]
+  const clampedZ = Math.max(deskDepth - 20, Math.min(ROOM_DEPTH_CM - 20, cameraZ));
   return (
-    <group position={[0, DESK_HEIGHT_CM + 5, cameraZ]}>
+    <group position={[0, DESK_HEIGHT_CM + 5, clampedZ]}>
       {/* Głowa */}
       <mesh>
         <sphereGeometry args={[12, 16, 16]} />
@@ -221,26 +223,29 @@ function Front3DScene({
   const scrollRef = useRef(0);
   const initialized = useRef(false);
 
-  // Initialize camera position
+  // Initialize camera position once when scene loads
   useEffect(() => {
     const initialZ = scene.deskDepthCm + scene.headDistance;
-    if (!initialized.current) {
-      initialized.current = true;
-      camera.position.set(0, EYE_HEIGHT_CM, initialZ);
-      camera.lookAt(0, EYE_HEIGHT_CM, scene.deskDepthCm / 2);
-      onCameraZChange(initialZ);
-    }
-  }, [camera, scene.deskDepthCm, scene.headDistance, onCameraZChange]);
+    camera.position.set(0, EYE_HEIGHT_CM, initialZ);
+    camera.lookAt(0, EYE_HEIGHT_CM, scene.deskDepthCm / 2);
+    onCameraZChange(initialZ);
+  }, []); // run once on mount
 
   // Scroll = zoom (przesuwanie kamery bliżej/dalej)
+  // cameraZ clamped: minimum = przy biurku (deskDepth-20), maximum = przy back wall (ROOM_DEPTH_CM-20)
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      scrollRef.current = Math.max(0, Math.min(scene.headDistance + scene.deskDepthCm - 20, scrollRef.current + e.deltaY * 0.15));
-      const observerZ = scene.deskDepthCm + scene.headDistance - scrollRef.current;
-      camera.position.set(0, EYE_HEIGHT_CM, observerZ);
+      const maxScroll = scene.headDistance + scene.deskDepthCm - 20;
+      const maxCameraZ = ROOM_DEPTH_CM - 20; // head can't go through back wall
+      const minCameraZ = scene.deskDepthCm - 20; // head can't go past desk front
+      scrollRef.current = Math.max(0, Math.min(maxScroll, scrollRef.current + e.deltaY * 0.15));
+      // scroll=0 → cameraZ=maxCameraZ (przy ścianie), scroll=maxScroll → cameraZ=minCameraZ (przy biurku)
+      const newCameraZ = maxCameraZ - scrollRef.current;
+      const clampedZ = Math.max(minCameraZ, Math.min(maxCameraZ, newCameraZ));
+      camera.position.set(0, EYE_HEIGHT_CM, clampedZ);
       camera.lookAt(0, EYE_HEIGHT_CM, scene.deskDepthCm / 2);
-      onCameraZChange(observerZ);
+      onCameraZChange(clampedZ);
     };
 
     const el = document.getElementById("front-3d-canvas");
