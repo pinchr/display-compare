@@ -197,7 +197,7 @@ function FrontCameraSetup({ scene }: { scene: SceneState }) {
   useEffect(() => {
     // Camera sits BEHIND the observer (observer at headDistance beyond desk back)
     // Camera at observer's eye level, looking TOWARD the desk (lower Z)
-    camera.position.set(0, scene.deskHeightCm + 50, scene.headDistance + scene.deskDepthCm + 30);
+    camera.position.set(0, scene.deskHeightCm + 50, scene.headDistance + scene.deskDepthCm / 2 + 80);
     camera.lookAt(0, scene.deskHeightCm + 50, scene.deskDepthCm / 2);
     camera.updateProjectionMatrix();
   }, [camera, scene.headDistance, scene.deskHeightCm, scene.deskDepthCm]);
