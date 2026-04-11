@@ -1,0 +1,32 @@
+# Rtings monitor reviews - collected via browser (human behavior)
+# Collected: 2026-04-09
+monitor/reviews/asus/rog-swift-oled-pg27ucdm|ASUS|ROG Swift OLED PG27UCDM|27"|OLED|QD-OLED|240Hz|3840x2160
+monitor/reviews/aoc/q27g3xmn|AOC|Q27G3XMN|27"|LCD|VA|180Hz|2560x1440
+monitor/reviews/lg/27gx790b-b|LG|27GX790B-B|27"|OLED||240Hz|3840x2160
+monitor/reviews/asus/rog-strix-oled-xg27aqdmg|ASUS|ROG Strix OLED XG27AQDMG|27"|OLED||240Hz|2560x1440
+monitor/reviews/aoc/q27g40xmn|AOC|Q27G40XMN|27"|LCD|VA|180Hz|2560x1440
+monitor/reviews/asus/rog-strix-oled-xg27aqwmg|ASUS|ROG Strix OLED XG27AQWMG|27"|OLED||Hz|2560x1440
+monitor/reviews/lg/27gx700a-b|LG|27GX700A-B|27"|OLED||Hz|2560x1440
+monitor/reviews/dell/s3225qc|Dell|S3225QC|27"|LCD|IPS|120Hz|3840x2160
+monitor/reviews/asus/rog-swift-oled-pg27aqwp-w|ASUS|ROG Swift OLED PG27AQWP-W|27"|OLED||Hz|3840x2160
+monitor/reviews/asus/rog-strix-oled-xg32ucwmg|ASUS|ROG Strix OLED XG32UCWMG|32"|OLED||Hz|3840x2160
+monitor/reviews/gigabyte/mo27q28g|Gigabyte|MO27Q28G|27"|OLED||240Hz|3840x2160
+monitor/reviews/dell/u2725qe|Dell|U2725QE|27"|LCD|IPS|120Hz|3840x2160
+monitor/reviews/acer/nitro-xv275k-p5biipruzx|Acer|Nitro XV275K P5biipruzx|27"|LCD|IPS|320Hz|3840x2160
+monitor/reviews/asus/rog-strix-oled-xg27acdng|ASUS|ROG Strix OLED XG27ACDNG|27"|OLED|QD-OLED|360Hz|2560x1440
+monitor/reviews/dell/alienware-aw3425dw|Dell|Alienware AW3425DW|34"|OLED|QD-OLED|240Hz|3440x1440
+monitor/reviews/asus/rog-swift-oled-pg32ucdm|ASUS|ROG Swift OLED PG32UCDM|32"|OLED|QD-OLED|240Hz|3840x2160
+monitor/reviews/dell/alienware-aw2725dm|Dell|Alienware AW2725DM|27"|LCD|IPS|180Hz|2560x1440
+monitor/reviews/dell/u4025qw|Dell|U4025QW|40"|LCD|IPS|60Hz|5120x2160
+monitor/reviews/samsung/odyssey-oled-g6-g60sd-s27dg60|Samsung|Odyssey OLED G60SD S27DG602S|27"|OLED||360Hz|2560x1440
+monitor/reviews/dell/alienware-aw3225qf|Dell|Alienware AW3225QF|32"|OLED||240Hz|3840x2160
+monitor/reviews/dell/s2725qc|Dell|S2725QC|27"|LCD|IPS|120Hz|3840x2160
+monitor/reviews/asus/proart-display-pa279crv|ASUS|ProArt Display PA279CRV|27"|LCD|IPS|60Hz|3840x2160
+monitor/reviews/dell/s2725dc|Dell|S2725DC|27"|LCD|IPS|144Hz|2560x1440
+monitor/reviews/dell/p2425h|Dell|P2425H|24"|LCD|IPS|100Hz|1920x1080
+monitor/reviews/dell/alienware-aw3425dwm|Dell|Alienware AW3425DWM|34"|LCD|VA|180Hz|3440x1440
+monitor/reviews/dell/alienware-aw2725df|Dell|Alienware AW2725DF|27"|OLED|QD-OLED|360Hz|2560x1440
+monitor/reviews/lg/24gs65f-b|LG|24GS65F-B|24"|LCD|IPS|180Hz|1920x1080
+monitor/reviews/dell/s2725qs|Dell|S2725QS|27"|LCD|IPS|120Hz|3840x2160
+monitor/reviews/viewsonic/xg2431|ViewSonic|XG2431|24"|LCD|IPS|240Hz|1920x1080
+monitor/reviews/asus/proart-display-6k-pa32qcv|ASUS|ProArt Display 6K PA32QCV|32"|LCD|IPS|60Hz|6016x3384

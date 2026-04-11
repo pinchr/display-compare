@@ -1,0 +1,26 @@
+[2026-04-10 07:17:47] ==================================================
+[2026-04-10 07:17:47] 🚀 rtings_scraper v7 — Smart Detail Fetcher
+[2026-04-10 07:17:47] 📊 DB: 144 total | 60 with basic specs | 84 need specs
+[2026-04-10 07:17:47] 📋 Processing 21 monitors
+  Acer Acer Nitro XV275K P3biipruzx: 27.0" x  160Hz   has_specs=0
+  ESPRESSO espresso Display 15 Touch: 27.0" x  Hz   has_specs=0
+  ASUS ASUS ROG Swift OLED PG32UCDM: 27.0" x  240Hz   has_specs=0
+  Samsung Samsung Odyssey G70D S32DG70: 27.0" x  144Hz   has_specs=0
+  ASUS ASUS ROG Strix OLED XG27AQWMG: 27.0" x  280Hz   has_specs=0
+  Gigabyte Gigabyte M27Q (rev. 1.0): 27.0" x  170Hz   has_specs=0
+  Dell Dell P2425H: 27.0" x  100Hz   has_specs=0
+  Dell Dell Alienware AW3423DWF: 27.0" x  Hz   has_specs=0
+  ASUS ASUS ROG Swift PG279QM: 27.0" x  240Hz   has_specs=0
+  Dell Dell S2725DC: 27.0" x  144Hz   has_specs=0
+  Dell Dell Alienware AW3225QF: 27.0" x  240Hz   has_specs=0
+  BenQ BenQ MOBIUZ EX321UX: 27.0" x  144Hz   has_specs=0
+  Samsung Samsung Odyssey Neo G9/G95NA S49AG95: 27.0" x  240Hz   has_specs=0
+  Dell Dell U3425WE: 27.0" x  120Hz   has_specs=0
+  Gigabyte Gigabyte M34WQ: 34.0" x  144Hz   has_specs=0
+  ASUS ASUS ProArt Display 6K PA32QCV: 27.0" x  Hz   has_specs=0
+  Samsung Samsung Odyssey G7 C32G75T: 27.0" x  240Hz   has_specs=0
+  Acer Acer Nitro XF243Y Pbmiiprx: 27.0" x  165Hz   has_specs=0
+  ASUS ASUS ProArt Display PA279CRV: 27.0" x  Hz   has_specs=0
+  Dell Dell U2725QE: 27.0" x  120Hz   has_specs=0
+  ASUS ASUS ROG Strix OLED XG27ACDNG: 27.0" x  360Hz   has_specs=0
+[2026-04-10 07:21:00] ✅ Done — updated:21 errors:0

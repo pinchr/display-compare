@@ -8,6 +8,8 @@ import Workspace from "@/components/Workspace";
 import LayoutGrid from "@/components/LayoutGrid";
 import SpecTable from "@/components/SpecTable";
 import DeskView from "@/components/DeskView";
+import ARMode, { monitorToARModel } from "@/components/ARMode";
+import { calcWidthCm, calcHeightCm } from "@/lib/monitors/calculations";
 
 const MAX_MONITORS = 6;
 const MAX_SIMULATOR_MONITORS = 3;
@@ -29,6 +31,8 @@ export default function Home() {
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   // Shared arrangement state — updated by WorkspaceSimulator, read by ViewFromAbove
   const [arrangements, setArrangements] = useState<MonitorArrangement[]>([]);
+  // AR Mode state
+  const [showAR, setShowAR] = useState(false);
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -67,6 +71,7 @@ export default function Home() {
   };
 
   return (
+    <>
     <main className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-bg-primary/90 backdrop-blur-md border-b border-border">
@@ -89,6 +94,13 @@ export default function Home() {
                 {selectedMonitors.length}/{MAX_MONITORS} selected
               </span>
             )}
+            <button
+              onClick={() => setShowAR(true)}
+              className="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-400 text-xs font-medium hover:bg-amber-500/30 transition-colors flex items-center gap-1"
+              title="AR Preview"
+            >
+              🥽 AR
+            </button>
             <a
               href="https://github.com"
               target="_blank"
@@ -158,7 +170,7 @@ export default function Home() {
           </section>
         )}
 
-        {/* Desk View - Workspace Simulator + Bird's Eye, synced in real-time */}
+        {/* Desk View - Workspace Simulator + Bird's Eye with Window Simulation */}
         {selectedMonitors.length >= 2 && (
           <section className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
             <DeskView
@@ -198,5 +210,18 @@ export default function Home() {
         </footer>
       </div>
     </main>
+
+    {showAR && (
+      <ARMode
+        monitors={selectedMonitors.map((m) => {
+          const wCm = calcWidthCm(m.diagonal, m.widthPx, m.heightPx);
+          const hCm = calcHeightCm(m.diagonal, m.widthPx, m.heightPx);
+          return monitorToARModel(m.id, wCm, hCm, "#1a1a1a");
+        })}
+        onPlace={(pos, rot) => console.log("Placed at", pos, "rotation", rot)}
+        onClose={() => setShowAR(false)}
+      />
+    )}
+    </>
   );
 }
